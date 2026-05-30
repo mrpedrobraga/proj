@@ -21,14 +21,19 @@ pub enum CliArgs {
     /// Bundles the project, allowing it to be shared in an entirely portable format.
     Bundle,
 
+    /// Commands dealing with task. Run it with `--help` for detailed info.
     #[command(subcommand)]
     Task(CliArgsTask),
+    /// Commands dealing with dependencies. Run it with `--help` for detailed info.
     #[command(subcommand)]
     Deps(CliArgsDeps),
+    /// Commands dealing with modules. Run it with `--help` for detailed info.
     #[command(subcommand)]
     Mod(CliArgsMod),
+    /// Commands dealing with lints. Run it with `--help` for detailed info.
     #[command(subcommand)]
     Lint(CliArgsLint),
+    /// Commands dealing with style and formatting. Run it with `--help` for detailed info.
     #[command(subcommand)]
     Style(CliArgsStyle),
 }
