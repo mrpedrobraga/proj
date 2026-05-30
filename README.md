@@ -45,7 +45,7 @@ proj info
 proj build
 proj run
 proj dev-serve  # Starts development server (LSP)
-proj package    # Bundles this project in an easy to share package (with all external resources and dependencies.)
+proj bundle     # Bundles this project in an entirely self-contained bundle for maximum portability.
 
 # -- Tasks, for user defined routines --
 proj task run <task>

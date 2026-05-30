@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-
 use proj::{ProjectManager, ProjectManifester, SimpleManifester};
 
 fn main() {

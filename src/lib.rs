@@ -4,8 +4,9 @@ use std::{
     marker::PhantomData,
     path::{Path, PathBuf},
 };
-
 use thiserror::Error;
+
+pub mod cli;
 
 /// The main trait of this library.
 /// Implement this for your own struct to create your own package manager.
