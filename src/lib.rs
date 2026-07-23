@@ -2,7 +2,7 @@
 
 use std::{
     marker::PhantomData,
-    path::{Path, PathBuf},
+    path::{Path},
 };
 use thiserror::Error;
 
@@ -32,13 +32,18 @@ pub trait ProjectManifester {
 
 /// A simple manifester that checks for the presence of a manifest file.
 pub struct SimpleManifester<ManifestFile> {
-    pub manifest_path: PathBuf,
     _marker: PhantomData<ManifestFile>,
 }
 
 impl<ManifestFile> SimpleManifester<ManifestFile> {
-    pub fn new(manifest_path: PathBuf) -> Self {
-        Self { manifest_path, _marker: PhantomData }
+    pub fn new() -> Self {
+        Self { _marker: PhantomData }
+    }
+}
+
+impl<ManifestFile> Default for SimpleManifester<ManifestFile> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -48,7 +53,7 @@ impl<ManifestFile> ProjectManifester for SimpleManifester<ManifestFile> {
     /// It checks for the presence of a manifest, returning `Ok(true)` or `Ok(false)`.
     /// This function may fail with an IO error.
     fn directory_contains_project(&self, path: &(impl AsRef<Path> + ?Sized)) -> Result<bool> {
-        let manifest_path = path.as_ref().join(&self.manifest_path);
+        let manifest_path = path.as_ref().join("README.md");
         let file_exists = std::fs::exists(manifest_path)?;
         Ok(file_exists)
     }

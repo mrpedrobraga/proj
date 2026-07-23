@@ -9,7 +9,11 @@ use std::path::PathBuf;
 #[command(version, about)]
 pub enum CliArgs {
     /// Creates a new project on the CWD.
-    New,
+    New {
+        project_name: String,
+        #[arg(long)]
+        path: PathBuf
+    },
     /// Prints project information.
     Info,
     /// Builds the current project.

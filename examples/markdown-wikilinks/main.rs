@@ -1,22 +1,21 @@
 use clap::Parser;
-use proj::{ProjectManager, ProjectManifester, SimpleManifester, cli::CliArgs};
-use std::path::PathBuf;
+use proj::{ProjectManifester, SimpleManifester, cli::CliArgs};
+
+pub mod md;
 
 fn main() {
     let args = CliArgs::parse();
 
-    let manifester: SimpleManifester<MdManifest> =
-        SimpleManifester::new(PathBuf::from("README.md"));
-    let _man = MdManager {};
+    let manifester: SimpleManifester<md::MdManifest> =
+        SimpleManifester::new();
+    let _man = md::MdProjectManager {};
 
     #[allow(unused)]
     match args {
-        CliArgs::New => unimplemented!(),
+        CliArgs::New { project_name, path } => unimplemented!(),
         CliArgs::Info => {
             let doesit = manifester
-                .directory_contains_project(
-                    "./examples/markdown-wikilinks/projects/example-project",
-                )
+                .directory_contains_project("./examples/markdown-wikilinks/projects/example-project")
                 .unwrap();
 
             if doesit {
@@ -35,12 +34,4 @@ fn main() {
         CliArgs::Lint(cli_args_lint) => unimplemented!(),
         CliArgs::Style(cli_args_style) => unimplemented!(),
     }
-}
-
-struct MdManager {}
-
-struct MdManifest {}
-
-impl ProjectManager for MdManager {
-    type Manifester = SimpleManifester<MdManifest>;
 }
