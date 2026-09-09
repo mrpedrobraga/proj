@@ -1,9 +1,14 @@
-use proj::{ProjectManager, SimpleManifester};
+use proj::project::{ProjectKind};
+use serde::{Deserialize, Serialize};
 
-pub struct MdProjectManager {}
+#[derive(Debug)]
+pub struct MarkdownProject;
 
-pub struct MdManifest {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MarkdownModuleItem {
+    Paragraph(String)
+}
 
-impl ProjectManager for MdProjectManager {
-    type Manifester = SimpleManifester<MdManifest>;
+impl ProjectKind for MarkdownProject {
+    type Item = MarkdownModuleItem;
 }

@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-#[derive(clap::Parser)]
+#[derive(clap::Parser, Debug)]
 #[command(version, about)]
 pub enum CliArgs {
     /// Creates a new project on the CWD.
@@ -42,13 +42,13 @@ pub enum CliArgs {
     Style(CliArgsStyle),
 }
 
-#[derive(clap::Subcommand)]
+#[derive(clap::Subcommand, Debug)]
 pub enum CliArgsTask {
     /// Runs a task.
     Run { #[arg(long)] task_name: String }
 }
 
-#[derive(clap::Subcommand)]
+#[derive(clap::Subcommand, Debug)]
 pub enum CliArgsDeps {
     /// Adds a new dependency
     Add {
@@ -71,7 +71,7 @@ pub enum CliArgsDeps {
     Upgrade,
 }
 
-#[derive(clap::Subcommand)]
+#[derive(clap::Subcommand, Debug)]
 pub enum CliArgsMod {
     /// Creates a new module on the given path.
     /// This is an "in project" path, not a file system path.
@@ -97,7 +97,7 @@ pub enum CliArgsMod {
     },
 }
 
-#[derive(clap::Subcommand)]
+#[derive(clap::Subcommand, Debug)]
 pub enum CliArgsLint {
     /// Links the project.
     Check,
@@ -110,7 +110,7 @@ pub enum CliArgsLint {
     }
 }
 
-#[derive(clap::Subcommand)]
+#[derive(clap::Subcommand, Debug)]
 pub enum CliArgsStyle {
     /// Formats the project.
     Apply
