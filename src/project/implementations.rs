@@ -1,9 +1,9 @@
-use std::{collections::HashMap, fmt::Debug, path::Path};
+use std::{fmt::Debug, path::Path};
 
 use sequence_trie::SequenceTrie;
 
 use super::{
-    Item, ItemSet, ModuleEntry, ModuleName, ModuleOrigin, ModulePath, ModuleSet, ProjectKind,
+    ModuleEntry, ModuleName, ModuleOrigin, ModulePath, ModuleSet, ProjectKind,
     ProjectOrigin, ProjectView,
 };
 
@@ -53,38 +53,48 @@ impl<P: ProjectKind> ModuleSet<P> {
         ModuleSet {
             entries: Vec::new(),
             forward_index: SequenceTrie::new(),
-            backward_index: HashMap::new(),
+            backward_index: SequenceTrie::new(),
         }
     }
 
     pub fn insert(&mut self, new_module: ModuleEntry<P>, path: ModulePath) {
         self.forward_index.insert(path.0.iter(), self.entries.len());
-        if let Some(last_item) = path.0.last() {
-            self.backward_index
-                .entry(last_item.clone())
-                .or_default()
-                .push(path.0.to_vec());
-        }
+        self.backward_index.insert(path.0.iter().rev(), self.entries.len());
         self.entries.push(new_module);
     }
 
-    /// Iterates through all the existing module paths in this set.
-    /// 
-    /// TODO: Make this an iterator.
-    pub fn iter_paths(
-        &self,
-    ) -> Vec<ModulePath> {
-        self.forward_index
-            .keys()
-            .map(|list| ModulePath::from(list.into_iter().cloned().collect::<Vec<_>>())).collect()
+    /// Retrieves a module given its full module path.
+    pub fn module_at(&self, key: ModulePath) -> Option<&ModuleEntry<P>> {
+        self.forward_index.get(key.0.iter()).and_then(|index| self.module_at_index(*index))
     }
 
-    /// Returns all possible module paths for a module named `module_name`.
-    pub fn possible_paths_for_module_name(&self, module_name: &String) -> Vec<ModulePath> {
-        self.backward_index
-            .get(module_name)
-            .map(|v| v.iter().map(|x| ModulePath::from(x.clone())).collect())
-            .unwrap_or_default()
+    /// Retrives the module slotted at a specific index.
+    fn module_at_index(&self, index: usize) -> Option<&ModuleEntry<P>> {
+        self.entries.get(index)
+    }
+
+    /// Iterates through all the existing module paths in this set.
+    ///
+    /// TODO: Make this an iterator.
+    pub fn iter_paths(&self) -> Vec<(ModulePath, usize)> {
+        self.forward_index
+            .iter()
+            .map(|(list, index)| {
+                (
+                    ModulePath::from(list.into_iter().cloned().collect::<Vec<_>>()),
+                    *index,
+                )
+            })
+            .collect()
+    }
+
+    /// Returns all possible module paths for a module that could be refferred to as `suffix`.
+    pub fn possible_paths_for_module_name(
+        &self,
+        suffix: ModulePath,
+    ) -> Option<&SequenceTrie<ModuleName, usize>>
+    {
+        self.backward_index.get_node(suffix.0.iter().rev())
     }
 
     /// Returns true if this module set already contains a module spawned
@@ -123,8 +133,15 @@ where
     P: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "mod '{}' ", self.name)?;
-        self.items.fmt(f)
+        write!(f, "mod '{}' at `{:?}`", self.name, self.internal_path)?;
+        //self.content.fmt(f)
+        Ok(())
+    }
+}
+
+impl ModulePath {
+    pub fn joined(&self, other: &Self) -> Self {
+        ModulePath(self.0.iter().chain(other.0.iter()).cloned().collect())
     }
 }
 
@@ -146,44 +163,15 @@ impl<const N: usize> From<[ModuleName; N]> for ModulePath {
     }
 }
 
+impl<const N: usize> From<[&str; N]> for ModulePath {
+    fn from(value: [&str; N]) -> Self {
+        ModulePath(value.into_iter().map(String::from).collect())
+    }
+}
+
 impl Debug for ModulePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0.join("::"))
     }
 }
 
-impl<P: ProjectKind> ItemSet<P> {
-    pub fn new() -> Self {
-        ItemSet {
-            entries: Vec::new(),
-        }
-    }
-
-    pub fn insert(&mut self, module_item: Item<P>) {
-        self.entries.push(module_item);
-    }
-}
-
-impl<P: ProjectKind> Default for ItemSet<P> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<P: ProjectKind> std::fmt::Debug for ItemSet<P>
-where
-    P: std::fmt::Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set().entries(self.entries.iter()).finish()
-    }
-}
-
-impl<P: ProjectKind> std::fmt::Debug for Item<P>
-where
-    P: std::fmt::Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "item {:?}", self.item)
-    }
-}

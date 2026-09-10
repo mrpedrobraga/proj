@@ -9,3 +9,6 @@ sequence_trie = "0.3.6"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.18"
 walkdir = "2.5.0"
+
+[dev-dependencies]
+markdown = { version = "1.0.0", features = ["serde"] }

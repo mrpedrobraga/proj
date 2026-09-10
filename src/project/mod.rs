@@ -1,6 +1,6 @@
 use sequence_trie::SequenceTrie;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{path::PathBuf};
 
 pub mod implementations;
 pub mod manifest;
@@ -11,7 +11,7 @@ pub trait ProjectKind {
     /// Type for the items inside a module.
     ///
     /// TODO: Create a trait to use as a bound here.
-    type Item: std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
+    type ModuleContent: std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
 
     /// Loads the root module for the project.
     ///
@@ -51,15 +51,16 @@ pub struct ModuleSet<P: ProjectKind> {
     /// Allows quick iteration of module paths matching a prefix.
     forward_index: SequenceTrie<ModuleName, usize>,
     /// Allows quick iteration of module paths matching a suffix.
-    backward_index: HashMap<ModuleName, Vec<Vec<ModuleName>>>,
+    backward_index: SequenceTrie<ModuleName, usize>,
 }
 
 /// An entry in the project view describing a module in the project.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ModuleEntry<P: ProjectKind> {
     pub name: String,
+    pub internal_path: ModulePath,
     pub origin: ModuleOrigin,
-    pub items: ItemSet<P>,
+    pub content: P::ModuleContent,
 }
 
 /// A reference to a module in a project.
@@ -75,18 +76,6 @@ pub struct ModulePath(pub Vec<ModuleName>);
 /// 
 /// TODO: Not use `String`.
 pub type ModuleName = String;
-
-/// A set of items in a module.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ItemSet<P: ProjectKind> {
-    pub entries: Vec<Item<P>>,
-}
-
-/// An item within a module.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Item<P: ProjectKind> {
-    pub item: P::Item,
-}
 
 /// A reference to an item in a specific module;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

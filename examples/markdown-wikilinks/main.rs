@@ -1,18 +1,40 @@
-use proj::project::ProjectView;
+use proj::project::{ModulePath, ProjectView};
 
 use self::md::MarkdownProject;
 
 pub mod md;
 
-fn main () {
+macro_rules! modpath {
+    () => { ModulePath::from([]) };
+    ( $name:ident ) => { ModulePath::from([ stringify!($name) ]) };
+    ( $name:ident $(:: $frag:ident)* ) => { ModulePath::from([ stringify!($name) $(, stringify!($frag))* ]) };
+}
+
+fn main() {
     let project_path = "./examples/markdown-wikilinks/projects/example-project";
-    let md_project_view: ProjectView<MarkdownProject> = ProjectView::new_from_directory(project_path);
+    let md_project_view: ProjectView<MarkdownProject> =
+        ProjectView::new_from_directory(project_path);
 
-    println!("{:#?}", md_project_view);
+    let test_module = md_project_view.modules.module_at(modpath!( Documents::Other::index ));
+    dbg!(test_module);
 
-    dbg!(md_project_view.modules.possible_paths_for_module_name(&"index".to_string()));
+    //test_partial_reference_resolution(md_project_view);
+}
 
-    for p in md_project_view.modules.iter_paths() {
-        dbg!(p);
-    }
+#[allow(unused)]
+fn test_partial_reference_resolution(md_project_view: ProjectView<MarkdownProject>) {
+    let suffix = modpath!(index);
+    println!(
+        "\n\nShowing all possible resolutions for a module named '{:#?}'.\n",
+        suffix
+    );
+    let possible_paths = md_project_view
+        .modules
+        .possible_paths_for_module_name(suffix.clone())
+        .unwrap();
+
+    possible_paths.iter().for_each(|(_, module_index)| {
+        let module = &md_project_view.modules.entries[*module_index];
+        dbg!(&module.internal_path);
+    });
 }
