@@ -1,5 +1,6 @@
+use sequence_trie::SequenceTrie;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 pub mod implementations;
 pub mod manifest;
@@ -15,25 +16,21 @@ pub trait ProjectKind {
     /// Loads the root module for the project.
     ///
     /// TODO: Handle failure cases.
-    fn load_root_module(modules: &mut Vec<ModuleEntry<Self>>, directory_path: PathBuf)
+    fn load_root_module(modules: &mut ModuleSet<Self>, directory_path: PathBuf)
     where
         Self: Sized;
 
     /// Performs discovery for other standalone modules.
     ///
     /// TODO: Handle failure cases.
-    fn discover_other_modules(modules: &mut Vec<ModuleEntry<Self>>, directory_path: PathBuf)
+    fn discover_other_modules(modules: &mut ModuleSet<Self>, directory_path: PathBuf)
     where
         Self: Sized;
 }
 
 #[derive(Clone)]
 pub struct ProjectView<P: ProjectKind> {
-    /// A topogically sorted list of all modules in the project.
-    /// Sibling ordering is not guaranteed but it should match
-    /// iteration order for modules manifested from the file system,
-    /// and item order for modules manifested from another module.
-    pub modules: Vec<ModuleEntry<P>>,
+    pub modules: ModuleSet<P>,
     pub origin: ProjectOrigin,
 }
 
@@ -43,21 +40,51 @@ pub struct ProjectOrigin {
     local_path: PathBuf,
 }
 
+/// A set of modules in a project.
+#[derive(Clone)]
+pub struct ModuleSet<P: ProjectKind> {
+    /// A topogically sorted list of all modules in the set.
+    /// Sibling ordering is not guaranteed but it should match
+    /// item order for modules manifested from another module
+    /// followed by iteration order for modules manifested from the file system.
+    pub entries: Vec<ModuleEntry<P>>,
+    /// Allows quick iteration of module paths matching a prefix.
+    forward_index: SequenceTrie<ModuleName, usize>,
+    /// Allows quick iteration of module paths matching a suffix.
+    backward_index: HashMap<ModuleName, Vec<Vec<ModuleName>>>,
+}
+
 /// An entry in the project view describing a module in the project.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ModuleEntry<P: ProjectKind> {
     pub name: String,
     pub origin: ModuleOrigin,
-    pub items: Vec<ModuleItem<P>>,
+    pub items: ItemSet<P>,
 }
 
 /// A reference to a module in a project.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleRef(usize);
 
+/// A path representing a module in a project.
+/// 
+#[derive(Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ModulePath(pub Vec<ModuleName>);
+
+/// Type representing the name of a module in paths.
+/// 
+/// TODO: Not use `String`.
+pub type ModuleName = String;
+
+/// A set of items in a module.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ItemSet<P: ProjectKind> {
+    pub entries: Vec<Item<P>>,
+}
+
 /// An item within a module.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ModuleItem<P: ProjectKind> {
+pub struct Item<P: ProjectKind> {
     pub item: P::Item,
 }
 

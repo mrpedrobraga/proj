@@ -130,6 +130,7 @@ name = "proj"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "sequence_trie",
  "serde",
  "thiserror",
  "walkdir",
@@ -152,6 +153,12 @@ checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "sequence_trie"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ee22067b7ccd072eeb64454b9c6e1b33b61cd0d49e895fd48676a184580e0c3"
 
 [[package]]
 name = "serde"

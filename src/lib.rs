@@ -1,11 +1,9 @@
 #![doc = include_str!("../README.md")]
 
 use thiserror::Error;
-
 use self::project::manifest::ProjectManifester;
 
 pub mod cli;
-
 pub mod project;
 
 /// The main trait of this library.
@@ -19,4 +17,3 @@ pub enum ProjError {
     #[error("an io error occurred")]
     Io(#[from] std::io::Error),
 }
-
