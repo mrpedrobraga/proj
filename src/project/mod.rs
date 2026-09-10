@@ -1,21 +1,23 @@
-use std::path::PathBuf;
-
+use std::{path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 pub mod manifest;
-
 pub mod implementations;
 
 /// A trait that describes specific information about a kind of project,
 /// for example, the items it can have, how to read it from files, etc.
 pub trait ProjectKind {
-  /// Type for the items inside a module.
-  /// 
-  /// TODO: Create a trait to use as a bound here.
-  type Item: std::fmt::Debug + Clone + Serialize + for <'de> Deserialize<'de>;
+    /// Type for the items inside a module.
+    ///
+    /// TODO: Create a trait to use as a bound here.
+    type Item: std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
+
+    fn load_root_module(modules: &mut Vec<ModuleEntry<Self>>, directory_path: PathBuf)
+    where
+        Self: Sized;
 }
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct ProjectView<P: ProjectKind> {
     /// A topogically sorted list of all modules in the project.
     /// Sibling ordering is not guaranteed but it should match
@@ -32,7 +34,7 @@ pub struct ProjectOrigin {
 }
 
 /// An entry in the project view describing a module in the project.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ModuleEntry<P: ProjectKind> {
     pub name: String,
     pub origin: ModuleOrigin,
@@ -44,9 +46,9 @@ pub struct ModuleEntry<P: ProjectKind> {
 pub struct ModuleRef(usize);
 
 /// An item within a module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ModuleItem<P: ProjectKind> {
-  item: P::Item
+    pub item: P::Item,
 }
 
 /// A reference to an item in a specific module;
