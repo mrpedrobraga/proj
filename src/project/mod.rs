@@ -1,8 +1,8 @@
-use std::{path::PathBuf};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-pub mod manifest;
 pub mod implementations;
+pub mod manifest;
 
 /// A trait that describes specific information about a kind of project,
 /// for example, the items it can have, how to read it from files, etc.
@@ -12,7 +12,17 @@ pub trait ProjectKind {
     /// TODO: Create a trait to use as a bound here.
     type Item: std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
 
+    /// Loads the root module for the project.
+    ///
+    /// TODO: Handle failure cases.
     fn load_root_module(modules: &mut Vec<ModuleEntry<Self>>, directory_path: PathBuf)
+    where
+        Self: Sized;
+
+    /// Performs discovery for other standalone modules.
+    ///
+    /// TODO: Handle failure cases.
+    fn discover_other_modules(modules: &mut Vec<ModuleEntry<Self>>, directory_path: PathBuf)
     where
         Self: Sized;
 }

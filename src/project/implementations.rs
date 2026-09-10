@@ -11,7 +11,8 @@ impl<PKind: ProjectKind> ProjectView<PKind> {
         };
         let mut modules = Vec::new();
 
-        PKind::load_root_module(&mut modules, local_path);
+        PKind::load_root_module(&mut modules, local_path.clone());
+        PKind::discover_other_modules(&mut modules, local_path);
 
         ProjectView { modules, origin }
     }
