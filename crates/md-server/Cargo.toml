@@ -8,3 +8,6 @@ proj = { version = "0.1.0", path = "../proj" }
 comrak = "0.55.0"
 serde = "1.0.229"
 walkdir = "2.5.0"
+smol = "2.0.2"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing = "0.1.44"

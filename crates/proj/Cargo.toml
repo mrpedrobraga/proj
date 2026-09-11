@@ -9,5 +9,6 @@ sequence_trie = "0.3.6"
 serde = { version = "1.0.228", features = ["derive"] }
 smol = "2.0.2"
 thiserror = "2.0.18"
-tower-lsp = "0.20.0"
+tower-lsp = { version = "0.20.0", default-features = false, features = ["runtime-agnostic"] }
+tracing = "0.1.44"
 walkdir = "2.5.0"

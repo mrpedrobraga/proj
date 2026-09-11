@@ -1,6 +1,6 @@
 use sequence_trie::SequenceTrie;
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 pub mod implementations;
 pub mod manifest;
@@ -11,7 +11,7 @@ pub trait ProjectKind {
     /// Type for the items inside a module.
     ///
     /// TODO: Create a trait to use as a bound here.
-    type ModuleContent: ModuleContentKind + std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
+    type ModuleContent: ModuleContentKind + Sync + Send + std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
 
     /// Loads the root module for the project.
     ///
@@ -56,12 +56,16 @@ pub struct ModuleSet<P: ProjectKind> {
     forward_index: SequenceTrie<ModuleName, usize>,
     /// Allows quick iteration of module paths matching a suffix.
     backward_index: SequenceTrie<ModuleName, usize>,
+    /// Allows quickly finding a module given its file path.
+    path_index: HashMap<PathBuf, usize>,
 }
 
 /// An entry in the project view describing a module in the project.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ModuleEntry<P: ProjectKind> {
     pub name: String,
+    /// Path of the module within the project.
+    /// Example `::root::foo::bar`
     pub internal_path: ModulePath,
     pub origin: ModuleOrigin,
     pub content: P::ModuleContent,
@@ -101,6 +105,10 @@ pub struct ProjectItemRef(ModuleRef, usize);
 pub enum ModuleOrigin {
     /// The module was sourced from a standalone file or a directory index.
     /// For example, in the markdown example, every `.md` file is its own module.
+    /// 
+    /// Example `~/Projects/my_project/main.rs`
+    /// 
+    /// TODO: Maybe use URI?
     File(PathBuf),
     /// The module was sourced from an item inside another module.
     /// Think a `mod` block in Rust.

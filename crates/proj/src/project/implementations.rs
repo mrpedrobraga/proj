@@ -1,4 +1,4 @@
-use std::{fmt::Debug, path::Path};
+use std::{collections::HashMap, fmt::Debug, path::{Path, PathBuf}};
 
 use sequence_trie::SequenceTrie;
 
@@ -54,12 +54,19 @@ impl<P: ProjectKind> ModuleSet<P> {
             entries: Vec::new(),
             forward_index: SequenceTrie::new(),
             backward_index: SequenceTrie::new(),
+            path_index: HashMap::new()
         }
     }
 
-    pub fn insert(&mut self, new_module: ModuleEntry<P>, path: ModulePath) {
-        self.forward_index.insert(path.0.iter(), self.entries.len());
-        self.backward_index.insert(path.0.iter().rev(), self.entries.len());
+    pub fn insert(&mut self, new_module: ModuleEntry<P>) {
+        let index_in_arena = self.entries.len();
+        self.forward_index.insert(new_module.internal_path.0.iter(), index_in_arena);
+        self.backward_index.insert(new_module.internal_path.0.iter().rev(), index_in_arena);
+        if let ModuleOrigin::File(path_buf) = &new_module.origin {
+            let absolute_path = path_buf.clone().canonicalize().expect("Path isn't real? :O");
+            tracing::info!("Inserting module {} at {}", new_module.name, absolute_path.display());
+            self.path_index.insert(absolute_path, index_in_arena);
+        }
         self.entries.push(new_module);
     }
 
@@ -68,10 +75,18 @@ impl<P: ProjectKind> ModuleSet<P> {
         self.forward_index.get(key.0.iter()).and_then(|index| self.module_at_index(*index))
     }
 
-    /// Retrives the module slotted at a specific index.
+    /// Retrieves the module given its file path.
+    /// 
+    /// TODO: Maybe use URI instead of file path?
+    pub fn module_at_file_path(&self, path: PathBuf) -> Option<&ModuleEntry<P>> {
+        self.path_index.get(&path).and_then(|index| self.module_at_index(*index))
+    }
+
+    /// Retrieves the module slotted at a specific index.
     fn module_at_index(&self, index: usize) -> Option<&ModuleEntry<P>> {
         self.entries.get(index)
     }
+    
 
     /// Iterates through all the existing module paths in this set.
     ///

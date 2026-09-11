@@ -18,18 +18,18 @@ impl ProjectKind for MarkdownProject {
     {
         let root_module_file_path = directory_path.join(MANIFEST_PATH);
         let root_module_source =
-            std::fs::read_to_string(&root_module_file_path).expect("Failed to load main module.");
+            std::fs::read_to_string(&root_module_file_path).unwrap_or_else(|_| panic!("Failed to load {:?}", root_module_file_path));
         let content = parse_markdown(&root_module_source);
 
         let root_module_path = modpath!(root);
         let root_module = ModuleEntry {
-            name: MANIFEST_PATH.to_string(),
+            name: "README".to_string(),
             internal_path: root_module_path.clone(),
             origin: proj::project::ModuleOrigin::File(root_module_file_path),
             content,
         };
 
-        modules.insert(root_module, root_module_path);
+        modules.insert(root_module);
     }
 
     /// Spawns non declared modules from the file system.
@@ -46,6 +46,8 @@ impl ProjectKind for MarkdownProject {
         for entry in walkdir::WalkDir::new(&directory_path) {
             let entry = entry.expect("Failed to get entry from file system.");
             let entry_path = entry.path();
+
+            if modules.contains_module_from_file_path(entry_path) { continue; }
 
             // Checks if the current file is a markdown file!
             if entry.file_type().is_file()
@@ -81,7 +83,7 @@ impl ProjectKind for MarkdownProject {
                     content,
                 };
 
-                modules.insert(module, internal_path);
+                modules.insert(module);
             }
         }
     }
@@ -96,11 +98,11 @@ fn parse_markdown(markdown_source: &str) -> MarkdownContent {
         parse: comrak::options::Parse::builder().build(),
         render: comrak::options::Render::default(),
     };
-    let root_node = comrak::parse_document(&arena, markdown_source, &options);
+    let _root_node = comrak::parse_document(&arena, markdown_source, &options);
 
-    for node in root_node.descendants() {
-        println!("{:#?}", node.collect_text());
-    }
+    // for node in root_node.descendants() {
+    //     println!("{:#?}", node.collect_text());
+    // }
 
     MarkdownContent {}
 }
