@@ -1,0 +1,10 @@
+[package]
+name = "md-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+proj = { version = "0.1.0", path = "../proj" }
+comrak = "0.55.0"
+serde = "1.0.229"
+walkdir = "2.5.0"

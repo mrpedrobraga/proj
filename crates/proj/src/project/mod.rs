@@ -67,6 +67,13 @@ pub struct ModuleEntry<P: ProjectKind> {
     pub content: P::ModuleContent,
 }
 
+#[macro_export]
+macro_rules! modpath {
+    () => { ModulePath::from([]) };
+    ( $name:ident ) => { $crate::project::ModulePath::from([ stringify!($name) ]) };
+    ( $name:ident $(:: $frag:ident)* ) => { $crate::project::ModulePath::from([ stringify!($name) $(, stringify!($frag))* ]) };
+}
+
 /// A reference to a module in a project.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleRef(usize);

@@ -904,6 +904,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "md-server"
+version = "0.1.0"
+dependencies = [
+ "comrak",
+ "proj",
+ "serde",
+ "walkdir",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1132,7 +1142,6 @@ name = "proj"
 version = "0.1.0"
 dependencies = [
  "clap",
- "comrak",
  "sequence_trie",
  "serde",
  "smol",

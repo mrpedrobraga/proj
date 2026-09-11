@@ -11,6 +11,3 @@ smol = "2.0.2"
 thiserror = "2.0.18"
 tower-lsp = "0.20.0"
 walkdir = "2.5.0"
-
-[dev-dependencies]
-comrak = "0.55.0"
