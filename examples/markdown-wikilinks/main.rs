@@ -16,7 +16,10 @@ fn main() {
         ProjectView::new_from_directory(project_path);
 
     let test_module = md_project_view.modules.module_at(modpath!( Documents::Other::index ));
-    dbg!(test_module);
+    let test_module = test_module.unwrap();
+
+    let test_module_content = &test_module.content;
+    dbg!(test_module_content);
 
     //test_partial_reference_resolution(md_project_view);
 }

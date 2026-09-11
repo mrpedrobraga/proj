@@ -1,3 +1,3 @@
-# Other Index
+This is a great example of a markdown file.
 
-Another example of a folder having an index.md
+This is a sentence containing a wikilink: [[Document2]].

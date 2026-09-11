@@ -11,7 +11,7 @@ pub trait ProjectKind {
     /// Type for the items inside a module.
     ///
     /// TODO: Create a trait to use as a bound here.
-    type ModuleContent: std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
+    type ModuleContent: ModuleContentKind + std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
 
     /// Loads the root module for the project.
     ///
@@ -26,6 +26,10 @@ pub trait ProjectKind {
     fn discover_other_modules(modules: &mut ModuleSet<Self>, directory_path: PathBuf)
     where
         Self: Sized;
+}
+
+pub trait ModuleContentKind {
+    
 }
 
 #[derive(Clone)]

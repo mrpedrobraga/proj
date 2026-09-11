@@ -4,6 +4,8 @@ use thiserror::Error;
 use self::project::manifest::ProjectManifester;
 
 pub mod cli;
+pub mod server;
+pub mod repl;
 pub mod project;
 
 /// The main trait of this library.

@@ -1,6 +1,5 @@
-use markdown::ParseOptions;
 use proj::project::{
-    ModuleEntry,
+    ModuleContentKind, ModuleEntry,
     ModuleOrigin::{self, File},
     ModulePath, ModuleSet, ProjectKind,
 };
@@ -12,8 +11,10 @@ pub struct MarkdownProject;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarkdownModuleContent {
-    root_node: markdown::mdast::Node
+    pub root_node: (),
 }
+
+impl ModuleContentKind for MarkdownModuleContent {}
 
 impl ProjectKind for MarkdownProject {
     type ModuleContent = MarkdownModuleContent;
@@ -29,7 +30,7 @@ impl ProjectKind for MarkdownProject {
             name: "README.md".to_string(),
             internal_path: ModulePath::from(["root"]),
             origin: ModuleOrigin::File(root_module_path.clone()),
-            content
+            content,
         };
         modules.insert(root_module, ModulePath::from(["root".to_string()]));
     }
@@ -57,10 +58,15 @@ impl ProjectKind for MarkdownProject {
                 let content = parse_markdown(&std::fs::read_to_string(entry_path).unwrap());
 
                 let module = ModuleEntry {
-                    name: entry_path.file_stem().unwrap().to_str().unwrap().to_string(),
+                    name: entry_path
+                        .file_stem()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
                     internal_path: internal_path.clone(),
                     origin: File(entry_path.to_path_buf()),
-                    content
+                    content,
                 };
 
                 modules.insert(module, internal_path);
@@ -70,7 +76,17 @@ impl ProjectKind for MarkdownProject {
 }
 
 fn parse_markdown(markdown_source: &str) -> MarkdownModuleContent {
-    let options = ParseOptions::default();
-    let root_mdast_node = markdown::to_mdast(markdown_source, &options).unwrap();
-    MarkdownModuleContent { root_node: root_mdast_node }
+    let arena = comrak::Arena::new();
+    let options = comrak::Options {
+        extension: comrak::options::Extension::builder().wikilinks_title_after_pipe(true).build(),
+        parse: comrak::options::Parse::builder().build(),
+        render: comrak::options::Render::default(),
+    };
+    let root_node = comrak::parse_document(&arena, markdown_source, &options);
+
+    for node in root_node.descendants() {
+        println!("{:#?}", node.collect_text());
+    }
+
+    MarkdownModuleContent { root_node: () }
 }
