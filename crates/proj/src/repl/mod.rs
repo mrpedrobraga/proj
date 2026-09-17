@@ -1,13 +1,21 @@
+use std::str::FromStr;
+
+use crate::project::{ModuleContentKind, ModuleEntry};
 use crate::{project::ProjectKind, server::ProjectServer};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    DidOpenTextDocumentParams, Hover, HoverParams, MarkupContent, TextDocumentSyncKind,
+    CodeAction, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
+    CodeDescription, Diagnostic, DiagnosticOptions, DiagnosticSeverity, DidOpenTextDocumentParams,
+    DocumentDiagnosticParams, DocumentDiagnosticReportResult, FullDocumentDiagnosticReport, Hover,
+    HoverParams, MarkupContent, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range,
+    RelatedFullDocumentDiagnosticReport, TextDocumentEdit, TextDocumentSyncKind, TextEdit, Url,
+    WorkDoneProgressOptions, WorkspaceEdit,
 };
 use tower_lsp::{
-    Client, LanguageServer,
     lsp_types::{
         InitializeParams, InitializeResult, InitializedParams, MessageType, ServerCapabilities,
     },
+    Client, LanguageServer,
 };
 
 pub use tower_lsp;
@@ -16,6 +24,21 @@ pub use tower_lsp;
 pub struct ProjectRepl<P: ProjectKind> {
     pub server: ProjectServer<P>,
     pub client: Client,
+}
+
+impl<P: ProjectKind> ProjectRepl<P> {
+    /// Returns a module from the open projects given its URI if such a module exists.
+    pub fn module_from_uri(&self, uri: &Url) -> Option<&ModuleEntry<P>> {
+        let text_document_uri = uri;
+        assert_eq!(text_document_uri.scheme(), "file");
+        let file_path = text_document_uri.to_file_path().expect("Not a file path?");
+
+        self.server
+            .open_projects
+            .iter()
+            .filter_map(|p| p.modules.module_at_file_path(&file_path))
+            .next()
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -40,7 +63,17 @@ impl<P: ProjectKind + std::fmt::Debug + 'static> LanguageServer for ProjectRepl<
                 // document_highlight_provider: todo!(),
                 // document_symbol_provider: todo!(),
                 // workspace_symbol_provider: todo!(),
-                // code_action_provider: todo!(),
+                code_action_provider: Some(
+                    tower_lsp::lsp_types::CodeActionProviderCapability::Options(
+                        CodeActionOptions {
+                            code_action_kinds: Some(vec![CodeActionKind::REFACTOR_REWRITE]),
+                            work_done_progress_options: WorkDoneProgressOptions {
+                                work_done_progress: None,
+                            },
+                            resolve_provider: Some(true),
+                        },
+                    ),
+                ),
                 // code_lens_provider: todo!(),
                 // document_formatting_provider: todo!(),
                 // document_range_formatting_provider: todo!(),
@@ -58,7 +91,16 @@ impl<P: ProjectKind + std::fmt::Debug + 'static> LanguageServer for ProjectRepl<
                 // linked_editing_range_provider: todo!(),
                 // inline_value_provider: todo!(),
                 // inlay_hint_provider: todo!(),
-                // diagnostic_provider: todo!(),
+                diagnostic_provider: Some(
+                    tower_lsp::lsp_types::DiagnosticServerCapabilities::Options(
+                        DiagnosticOptions {
+                            identifier: None, // TODO: Add an identifier here :-)
+                            inter_file_dependencies: true,
+                            workspace_diagnostics: false,
+                            work_done_progress_options: WorkDoneProgressOptions::default(),
+                        },
+                    ),
+                ),
                 // experimental: todo!(),
                 ..Default::default()
             },
@@ -77,20 +119,106 @@ impl<P: ProjectKind + std::fmt::Debug + 'static> LanguageServer for ProjectRepl<
     }
 
     async fn hover(&self, param: HoverParams) -> Result<Option<Hover>> {
-        let text_document_uri = param.text_document_position_params.text_document.uri;
-        assert_eq!(text_document_uri.scheme(), "file");
-        let file_path = text_document_uri.to_file_path().expect("Not a file path?");
-        if let Some(view) = &self.server.view {
-            let module = view.modules.module_at_file_path(file_path.clone());
-            let module_path = &module.unwrap().internal_path;
+        if let Some(module) =
+            self.module_from_uri(&param.text_document_position_params.text_document.uri)
+        {
+            let hover_info = module
+                .content
+                .hover_information_at(param.text_document_position_params.position.into());
 
-            return Ok(Some(Hover {
+            return Ok(hover_info.map(|info| Hover {
                 contents: tower_lsp::lsp_types::HoverContents::Markup(MarkupContent {
                     kind: tower_lsp::lsp_types::MarkupKind::Markdown,
-                    value: format!("You are hovering over `{module_path:?}`."),
+                    value: info.text,
                 }),
-                range: None,
+                range: info.range.map(|range| tower_lsp::lsp_types::Range {
+                    start: range.0.into(),
+                    end: range.1.into(),
+                }),
             }));
+        }
+
+        Ok(None)
+    }
+
+    async fn diagnostic(
+        &self,
+        _params: DocumentDiagnosticParams,
+    ) -> Result<DocumentDiagnosticReportResult> {
+        let items = vec![Diagnostic {
+            range: Range {
+                start: Position::new(0, 99),
+                end: Position::new(0, 99),
+            },
+            severity: Some(DiagnosticSeverity::INFORMATION),
+            code: Some(tower_lsp::lsp_types::NumberOrString::Number(42)),
+            code_description: Some(CodeDescription {
+                href: Url::from_str("https://mrpedrobraga.com/error").unwrap(),
+            }),
+            source: Some(String::from("proj")),
+            message: "This line could be uppercase. Like, if you wanted I guess. You could do it."
+                .to_string(),
+            related_information: None,
+            tags: None,
+            data: None,
+        }];
+
+        Ok(DocumentDiagnosticReportResult::Report(
+            tower_lsp::lsp_types::DocumentDiagnosticReport::Full(
+                RelatedFullDocumentDiagnosticReport {
+                    related_documents: None,
+                    full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                        result_id: None,
+                        items,
+                    },
+                },
+            ),
+        ))
+    }
+
+    async fn code_action(
+        &self,
+        params: CodeActionParams,
+    ) -> Result<Option<Vec<CodeActionOrCommand>>> {
+        if let Some(_module) = self.module_from_uri(&params.text_document.uri) {
+            let new_line_text = _module.content.nth_line(0).unwrap().to_uppercase();
+
+            let c_a = CodeActionOrCommand::CodeAction(CodeAction {
+                title: "Make line uppercase.".to_string(),
+                kind: Some(CodeActionKind::REFACTOR_REWRITE),
+                diagnostics: Some(vec![Diagnostic {
+                    range: Range {
+                        start: Position::new(0, 99),
+                        end: Position::new(0, 99),
+                    },
+                    severity: Some(DiagnosticSeverity::INFORMATION),
+                    code: Some(tower_lsp::lsp_types::NumberOrString::Number(42)),
+                    code_description: Some(CodeDescription {
+                        href: Url::from_str("https://mrpedrobraga.com/error").unwrap(),
+                    }),
+                    source: Some(String::from("proj")),
+                    message:
+                        "This line could be uppercase. Like, if you wanted I guess. You could do it."
+                            .to_string(),
+                    related_information: None,
+                    tags: None,
+                    data: None,
+                }]),
+                edit: Some(WorkspaceEdit {
+                    changes: None,
+                    document_changes: Some(tower_lsp::lsp_types::DocumentChanges::Edits(vec![ TextDocumentEdit { text_document: OptionalVersionedTextDocumentIdentifier { uri: params.text_document.uri, version: None }, edits: vec![ OneOf::Left(TextEdit{ range: Range {
+                start: Position::new(0, 0),
+                end: Position::new(0, 99),
+            }, new_text: new_line_text })] } ])),
+                    change_annotations: None,
+                }),
+                command: None,
+                is_preferred: Some(true),
+                disabled: None,
+                data: None,
+            });
+
+            return Ok(Some(vec![c_a]));
         }
 
         Ok(None)

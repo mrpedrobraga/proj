@@ -1,4 +1,4 @@
- use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 pub mod implementations;
 
@@ -10,5 +10,7 @@ pub struct MarkdownProject {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MarkdownContent {}
-
+pub struct MarkdownContent {
+    lines_which_are_headings: Vec<usize>,
+    text: String,
+}

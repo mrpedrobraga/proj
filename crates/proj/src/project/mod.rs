@@ -2,6 +2,8 @@ use sequence_trie::SequenceTrie;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
+use crate::server::HoverInfo;
+
 pub mod implementations;
 pub mod manifest;
 
@@ -11,7 +13,13 @@ pub trait ProjectKind {
     /// Type for the items inside a module.
     ///
     /// TODO: Create a trait to use as a bound here.
-    type ModuleContent: ModuleContentKind + Sync + Send + std::fmt::Debug + Clone + Serialize + for<'de> Deserialize<'de>;
+    type ModuleContent: ModuleContentKind
+        + Sync
+        + Send
+        + std::fmt::Debug
+        + Clone
+        + Serialize
+        + for<'de> Deserialize<'de>;
 
     /// Loads the root module for the project.
     ///
@@ -28,8 +36,17 @@ pub trait ProjectKind {
         Self: Sized;
 }
 
+/// A "Kind" of module content—each can have different content internally and different ways of
+/// interacting or generating such content.
 pub trait ModuleContentKind {
-    
+    /// Returns hover information corresponding with a particular location in the source text
+    /// if this module was generated from a file or equivalent.
+    ///
+    /// In this case, it makes sense to keep something like a concrete syntax tree
+    /// which maps `PositionInText`s to items.
+    fn hover_information_at(&self, position_in_source_text: PositionInText) -> Option<HoverInfo>;
+
+    fn nth_line(&self, line_index: usize) -> Option<String>;
 }
 
 #[derive(Clone)]
@@ -83,18 +100,32 @@ macro_rules! modpath {
 pub struct ModuleRef(usize);
 
 /// A path representing a module in a project.
-/// 
+///
 #[derive(Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModulePath(pub Vec<ModuleName>);
 
 /// Type representing the name of a module in paths.
-/// 
+///
 /// TODO: Not use `String`.
 pub type ModuleName = String;
 
 /// A reference to an item in a specific module;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleItemRef(usize);
+
+/// Position of something in a text document.
+///
+/// This is preferrable to an `usize` "character index" when editing large texts.
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Default, Deserialize, Serialize)]
+pub struct PositionInText {
+    /// Line position in a document (zero-based).
+    pub line: u32,
+    /// Column position in a document (zero-based).
+    ///
+    /// In usage, if this is bigger than the length of the line in the source text,
+    /// the consumer will use the line length instead :-)
+    pub column: u32,
+}
 
 /// A reference to an item anywhere in a project;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -105,9 +136,9 @@ pub struct ProjectItemRef(ModuleRef, usize);
 pub enum ModuleOrigin {
     /// The module was sourced from a standalone file or a directory index.
     /// For example, in the markdown example, every `.md` file is its own module.
-    /// 
+    ///
     /// Example `~/Projects/my_project/main.rs`
-    /// 
+    ///
     /// TODO: Maybe use URI?
     File(PathBuf),
     /// The module was sourced from an item inside another module.

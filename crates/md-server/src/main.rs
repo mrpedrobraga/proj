@@ -2,8 +2,8 @@ use proj::{
     modpath,
     project::ProjectView,
     repl::{
-        ProjectRepl,
         tower_lsp::{LspService, Server},
+        ProjectRepl,
     },
     server::ProjectServer,
 };
@@ -14,8 +14,31 @@ use self::project::MarkdownProject;
 pub mod project;
 
 fn main() {
-    let file = std::fs::File::create("/tmp/md-server.log")
-        .expect("Failed to create log file");
+    setup_logging();
+
+    let project_path =
+        "/home/mrpedrobraga/Development/proj/crates/md-server/projects/example-project";
+
+    let md_project_view: ProjectView<MarkdownProject> =
+        ProjectView::new_from_directory(project_path);
+
+    let server = ProjectServer {
+        open_projects: vec![md_project_view],
+    };
+
+    let server_process = setup_lsp_service(server);
+    smol::block_on(server_process);
+}
+
+fn setup_lsp_service(server: ProjectServer<MarkdownProject>) -> impl Future<Output = ()> {
+    let (service, socket) = LspService::new(|client| ProjectRepl { server, client });
+    let stdin = smol::Unblock::new(std::io::stdin());
+    let stdout = smol::Unblock::new(std::io::stdout());
+    Server::new(stdin, stdout, socket).serve(service)
+}
+
+fn setup_logging() {
+    let file = std::fs::File::create("/tmp/md-server.log").expect("Failed to create log file");
 
     tracing_subscriber::registry()
         .with(
@@ -27,21 +50,6 @@ fn main() {
         .init();
 
     tracing::info!("LSP Server initialized and logging setup complete.");
-
-    let project_path =
-        "/home/mrpedrobraga/Development/proj/crates/md-server/projects/example-project";
-
-    let md_project_view: ProjectView<MarkdownProject> =
-        ProjectView::new_from_directory(project_path);
-    let server = ProjectServer {
-        view: Some(md_project_view),
-    };
-
-    let (service, socket) = LspService::new(|client| ProjectRepl { server, client });
-    let stdin = smol::Unblock::new(std::io::stdin());
-    let stdout = smol::Unblock::new(std::io::stdout());
-    let server_process = Server::new(stdin, stdout, socket).serve(service);
-    smol::block_on(server_process);
 }
 
 #[allow(unused)]

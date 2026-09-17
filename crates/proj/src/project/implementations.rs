@@ -1,9 +1,10 @@
-use std::{collections::HashMap, fmt::Debug, path::{Path, PathBuf}};
+use std::{collections::HashMap, fmt::Debug, path::Path};
 
 use sequence_trie::SequenceTrie;
+use tower_lsp::lsp_types::{self, Position};
 
 use super::{
-    ModuleEntry, ModuleName, ModuleOrigin, ModulePath, ModuleSet, ProjectKind,
+    ModuleEntry, ModuleName, ModuleOrigin, ModulePath, ModuleSet, PositionInText, ProjectKind,
     ProjectOrigin, ProjectView,
 };
 
@@ -54,17 +55,26 @@ impl<P: ProjectKind> ModuleSet<P> {
             entries: Vec::new(),
             forward_index: SequenceTrie::new(),
             backward_index: SequenceTrie::new(),
-            path_index: HashMap::new()
+            path_index: HashMap::new(),
         }
     }
 
     pub fn insert(&mut self, new_module: ModuleEntry<P>) {
         let index_in_arena = self.entries.len();
-        self.forward_index.insert(new_module.internal_path.0.iter(), index_in_arena);
-        self.backward_index.insert(new_module.internal_path.0.iter().rev(), index_in_arena);
+        self.forward_index
+            .insert(new_module.internal_path.0.iter(), index_in_arena);
+        self.backward_index
+            .insert(new_module.internal_path.0.iter().rev(), index_in_arena);
         if let ModuleOrigin::File(path_buf) = &new_module.origin {
-            let absolute_path = path_buf.clone().canonicalize().expect("Path isn't real? :O");
-            tracing::info!("Inserting module {} at {}", new_module.name, absolute_path.display());
+            let absolute_path = path_buf
+                .clone()
+                .canonicalize()
+                .expect("Path isn't real? :O");
+            tracing::info!(
+                "Inserting module {} at {}",
+                new_module.name,
+                absolute_path.display()
+            );
             self.path_index.insert(absolute_path, index_in_arena);
         }
         self.entries.push(new_module);
@@ -72,21 +82,27 @@ impl<P: ProjectKind> ModuleSet<P> {
 
     /// Retrieves a module given its full module path.
     pub fn module_at(&self, key: ModulePath) -> Option<&ModuleEntry<P>> {
-        self.forward_index.get(key.0.iter()).and_then(|index| self.module_at_index(*index))
+        self.forward_index
+            .get(key.0.iter())
+            .and_then(|index| self.module_at_index(*index))
     }
 
     /// Retrieves the module given its file path.
-    /// 
+    ///
     /// TODO: Maybe use URI instead of file path?
-    pub fn module_at_file_path(&self, path: PathBuf) -> Option<&ModuleEntry<P>> {
-        self.path_index.get(&path).and_then(|index| self.module_at_index(*index))
+    pub fn module_at_file_path<Pa>(&self, path: Pa) -> Option<&ModuleEntry<P>>
+    where
+        Pa: AsRef<Path>,
+    {
+        self.path_index
+            .get(path.as_ref())
+            .and_then(|index| self.module_at_index(*index))
     }
 
     /// Retrieves the module slotted at a specific index.
     fn module_at_index(&self, index: usize) -> Option<&ModuleEntry<P>> {
         self.entries.get(index)
     }
-    
 
     /// Iterates through all the existing module paths in this set.
     ///
@@ -107,8 +123,7 @@ impl<P: ProjectKind> ModuleSet<P> {
     pub fn possible_paths_for_module_name(
         &self,
         suffix: ModulePath,
-    ) -> Option<&SequenceTrie<ModuleName, usize>>
-    {
+    ) -> Option<&SequenceTrie<ModuleName, usize>> {
         self.backward_index.get_node(suffix.0.iter().rev())
     }
 
@@ -190,3 +205,20 @@ impl Debug for ModulePath {
     }
 }
 
+impl From<lsp_types::Position> for PositionInText {
+    fn from(value: lsp_types::Position) -> Self {
+        PositionInText {
+            line: value.line,
+            column: value.character,
+        }
+    }
+}
+
+impl From<PositionInText> for lsp_types::Position {
+    fn from(value: PositionInText) -> Self {
+        Position {
+            line: value.line,
+            character: value.column,
+        }
+    }
+}

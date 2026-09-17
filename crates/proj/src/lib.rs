@@ -1,12 +1,12 @@
 #![doc = include_str!("../README.md")]
 
-use thiserror::Error;
 use self::project::manifest::ProjectManifester;
+use thiserror::Error;
 
 pub mod cli;
-pub mod server;
-pub mod repl;
 pub mod project;
+pub mod repl;
+pub mod server;
 
 /// The main trait of this library.
 /// Implement this for your own struct to create your own package manager.

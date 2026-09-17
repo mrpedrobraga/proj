@@ -1,11 +1,24 @@
-use crate::project::{ProjectKind, ProjectView};
+use serde::{Deserialize, Serialize};
+
+use crate::project::{PositionInText, ProjectKind, ProjectView};
 
 #[derive(Debug)]
 pub struct ProjectServer<P: ProjectKind> {
     /// View to this server's project.
     ///
-    /// TODO: Make this a graph, allowing multiple
-    /// project views to be open at the same time.
-    /// This is necessary for dependencies.
-    pub view: Option<ProjectView<P>>
+    /// TODO: Make this an arena... perhaps allow multiple
+    /// `ProjectKind`s to be open!
+    pub open_projects: Vec<ProjectView<P>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HoverInfo {
+    pub text: String,
+    pub range: Option<(PositionInText, PositionInText)>,
+}
+
+impl HoverInfo {
+    pub fn new(text: String, range: Option<(PositionInText, PositionInText)>) -> Self {
+        Self { text, range }
+    }
 }

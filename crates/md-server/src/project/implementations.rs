@@ -1,11 +1,51 @@
+use super::{MarkdownContent, MarkdownProject, MANIFEST_PATH};
 use proj::{
     modpath,
-    project::{ModuleContentKind, ModuleEntry, ModulePath, ProjectKind},
+    project::{ModuleContentKind, ModuleEntry, ModulePath, PositionInText, ProjectKind},
+    server::HoverInfo,
 };
 
-use super::{MANIFEST_PATH, MarkdownContent, MarkdownProject};
+impl ModuleContentKind for MarkdownContent {
+    fn hover_information_at(
+        &self,
+        position_in_source_text: proj::project::PositionInText,
+    ) -> Option<HoverInfo> {
+        if let Some(line_index) = self
+            .lines_which_are_headings
+            .iter()
+            .copied()
+            .find(|index| *index == position_in_source_text.line as usize)
+        {
+            let heading = self
+                .text
+                .lines()
+                .nth(line_index)
+                .unwrap_or("Heading")
+                .to_string();
+            let range = (
+                PositionInText {
+                    line: line_index as u32,
+                    column: 0,
+                },
+                PositionInText {
+                    line: line_index as u32,
+                    column: heading.len() as u32,
+                },
+            );
 
-impl ModuleContentKind for MarkdownContent {}
+            return Some(HoverInfo {
+                text: format!("{heading}\n\nA beautiful heading in my beautiful markdown project.\nReally, isn't it sweet?"),
+                range: Some(range)
+            });
+        }
+
+        None
+    }
+
+    fn nth_line(&self, line_index: usize) -> Option<String> {
+        self.text.lines().nth(line_index).map(str::to_string)
+    }
+}
 
 impl ProjectKind for MarkdownProject {
     type ModuleContent = MarkdownContent;
@@ -17,8 +57,8 @@ impl ProjectKind for MarkdownProject {
         Self: Sized,
     {
         let root_module_file_path = directory_path.join(MANIFEST_PATH);
-        let root_module_source =
-            std::fs::read_to_string(&root_module_file_path).unwrap_or_else(|_| panic!("Failed to load {:?}", root_module_file_path));
+        let root_module_source = std::fs::read_to_string(&root_module_file_path)
+            .unwrap_or_else(|_| panic!("Failed to load {:?}", root_module_file_path));
         let content = parse_markdown(&root_module_source);
 
         let root_module_path = modpath!(root);
@@ -47,7 +87,9 @@ impl ProjectKind for MarkdownProject {
             let entry = entry.expect("Failed to get entry from file system.");
             let entry_path = entry.path();
 
-            if modules.contains_module_from_file_path(entry_path) { continue; }
+            if modules.contains_module_from_file_path(entry_path) {
+                continue;
+            }
 
             // Checks if the current file is a markdown file!
             if entry.file_type().is_file()
@@ -100,9 +142,19 @@ fn parse_markdown(markdown_source: &str) -> MarkdownContent {
     };
     let _root_node = comrak::parse_document(&arena, markdown_source, &options);
 
+    let mut lines_which_are_headings = vec![];
+    for (line_index, line) in markdown_source.lines().enumerate() {
+        if line.starts_with("#") {
+            lines_which_are_headings.push(line_index);
+        }
+    }
+
     // for node in root_node.descendants() {
     //     println!("{:#?}", node.collect_text());
     // }
 
-    MarkdownContent {}
+    MarkdownContent {
+        lines_which_are_headings,
+        text: markdown_source.to_string(),
+    }
 }
