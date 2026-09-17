@@ -1,6 +1,9 @@
 use sequence_trie::SequenceTrie;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use crate::server::HoverInfo;
 
@@ -9,50 +12,32 @@ pub mod manifest;
 
 /// A trait that describes specific information about a kind of project,
 /// for example, the items it can have, how to read it from files, etc.
-pub trait ProjectKind {
-    /// Type for the items inside a module.
-    ///
-    /// TODO: Create a trait to use as a bound here.
-    type ModuleContent: ModuleContentKind
-        + Sync
-        + Send
-        + std::fmt::Debug
-        + Clone
-        + Serialize
-        + for<'de> Deserialize<'de>;
-
-    /// Loads the root module for the project.
-    ///
-    /// TODO: Handle failure cases.
-    fn load_root_module(modules: &mut ModuleSet<Self>, directory_path: PathBuf)
+pub trait Project: Send + Sync {
+    /// Creates a new project view from a directory.
+    fn new_from_directory<Pa: AsRef<Path>>(path: Pa) -> Self
     where
         Self: Sized;
 
-    /// Performs discovery for other standalone modules.
+    /// Updates this project view by looking at this new directory.
     ///
-    /// TODO: Handle failure cases.
-    fn discover_other_modules(modules: &mut ModuleSet<Self>, directory_path: PathBuf)
+    /// This is faster than creating a new view from scratch if little has changed
+    /// on disk since the current version, but way slower if the entire project structure changed.
+    ///
+    /// TODO: Perhaps use immutable `ProjectView`s instead of taking `&mut self`?
+    fn update_from_directory<Pa: AsRef<Path>>(path: Pa) -> Self
     where
         Self: Sized;
-}
 
-/// A "Kind" of module content—each can have different content internally and different ways of
-/// interacting or generating such content.
-pub trait ModuleContentKind {
-    /// Returns hover information corresponding with a particular location in the source text
-    /// if this module was generated from a file or equivalent.
-    ///
-    /// In this case, it makes sense to keep something like a concrete syntax tree
-    /// which maps `PositionInText`s to items.
-    fn hover_information_at(&self, position_in_source_text: PositionInText) -> Option<HoverInfo>;
+    fn load_root_module(&mut self, directory_path: PathBuf)
+    where
+        Self: Sized;
 
-    fn nth_line(&self, line_index: usize) -> Option<String>;
-}
+    fn discover_other_modules(&mut self, directory_path: PathBuf)
+    where
+        Self: Sized;
 
-#[derive(Clone)]
-pub struct ProjectView<P: ProjectKind> {
-    pub modules: ModuleSet<P>,
-    pub origin: ProjectOrigin,
+    /// Returns the module associated with the given file path if one exists.
+    fn module_at_file_path(&self, file_path: &Path) -> Option<&ModuleEntry>;
 }
 
 /// Where a project was sourced from.
@@ -62,13 +47,12 @@ pub struct ProjectOrigin {
 }
 
 /// A set of modules in a project.
-#[derive(Clone)]
-pub struct ModuleSet<P: ProjectKind> {
+pub struct ModuleSet {
     /// A topogically sorted list of all modules in the set.
     /// Sibling ordering is not guaranteed but it should match
     /// item order for modules manifested from another module
     /// followed by iteration order for modules manifested from the file system.
-    pub entries: Vec<ModuleEntry<P>>,
+    pub entries: Vec<ModuleEntry>,
     /// Allows quick iteration of module paths matching a prefix.
     forward_index: SequenceTrie<ModuleName, usize>,
     /// Allows quick iteration of module paths matching a suffix.
@@ -78,14 +62,13 @@ pub struct ModuleSet<P: ProjectKind> {
 }
 
 /// An entry in the project view describing a module in the project.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ModuleEntry<P: ProjectKind> {
+pub struct ModuleEntry {
     pub name: String,
     /// Path of the module within the project.
     /// Example `::root::foo::bar`
     pub internal_path: ModulePath,
     pub origin: ModuleOrigin,
-    pub content: P::ModuleContent,
+    pub content: Box<dyn ModuleContent>,
 }
 
 #[macro_export]
@@ -113,20 +96,6 @@ pub type ModuleName = String;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleItemRef(usize);
 
-/// Position of something in a text document.
-///
-/// This is preferrable to an `usize` "character index" when editing large texts.
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Default, Deserialize, Serialize)]
-pub struct PositionInText {
-    /// Line position in a document (zero-based).
-    pub line: u32,
-    /// Column position in a document (zero-based).
-    ///
-    /// In usage, if this is bigger than the length of the line in the source text,
-    /// the consumer will use the line length instead :-)
-    pub column: u32,
-}
-
 /// A reference to an item anywhere in a project;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ProjectItemRef(ModuleRef, usize);
@@ -144,4 +113,31 @@ pub enum ModuleOrigin {
     /// The module was sourced from an item inside another module.
     /// Think a `mod` block in Rust.
     Item(ProjectItemRef),
+}
+
+/// A "Kind" of module content—each can have different content internally and different ways of
+/// interacting or generating such content.
+pub trait ModuleContent: Send + Sync {
+    /// Returns hover information corresponding with a particular location in the source text
+    /// if this module was generated from a file or equivalent.
+    ///
+    /// In this case, it makes sense to keep something like a concrete syntax tree
+    /// which maps `PositionInText`s to items.
+    fn hover_information_at(&self, position_in_source_text: PositionInText) -> Option<HoverInfo>;
+
+    fn nth_line(&self, line_index: usize) -> Option<String>;
+}
+
+/// Position of something in a text document.
+///
+/// This is preferrable to an `usize` "character index" when editing large texts.
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Default, Deserialize, Serialize)]
+pub struct PositionInText {
+    /// Line position in a document (zero-based).
+    pub line: u32,
+    /// Column position in a document (zero-based).
+    ///
+    /// In usage, if this is bigger than the length of the line in the source text,
+    /// the consumer will use the line length instead :-)
+    pub column: u32,
 }

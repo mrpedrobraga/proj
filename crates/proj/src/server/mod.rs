@@ -1,14 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-use crate::project::{PositionInText, ProjectKind, ProjectView};
+use crate::project::{PositionInText, Project};
 
-#[derive(Debug)]
-pub struct ProjectServer<P: ProjectKind> {
+pub struct ProjectServer {
     /// View to this server's project.
     ///
     /// TODO: Make this an arena... perhaps allow multiple
     /// `ProjectKind`s to be open!
-    pub open_projects: Vec<ProjectView<P>>,
+    pub open_projects: Vec<Box<dyn Project>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

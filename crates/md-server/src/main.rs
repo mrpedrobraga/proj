@@ -1,6 +1,6 @@
 use proj::{
     modpath,
-    project::ProjectView,
+    project::Project as _,
     repl::{
         tower_lsp::{LspService, Server},
         ProjectRepl,
@@ -19,18 +19,17 @@ fn main() {
     let project_path =
         "/home/mrpedrobraga/Development/proj/crates/md-server/projects/example-project";
 
-    let md_project_view: ProjectView<MarkdownProject> =
-        ProjectView::new_from_directory(project_path);
+    let md_project_view: MarkdownProject = MarkdownProject::new_from_directory(project_path);
 
     let server = ProjectServer {
-        open_projects: vec![md_project_view],
+        open_projects: vec![Box::new(md_project_view)],
     };
 
     let server_process = setup_lsp_service(server);
     smol::block_on(server_process);
 }
 
-fn setup_lsp_service(server: ProjectServer<MarkdownProject>) -> impl Future<Output = ()> {
+fn setup_lsp_service(server: ProjectServer) -> impl Future<Output = ()> {
     let (service, socket) = LspService::new(|client| ProjectRepl { server, client });
     let stdin = smol::Unblock::new(std::io::stdin());
     let stdout = smol::Unblock::new(std::io::stdout());
@@ -53,7 +52,7 @@ fn setup_logging() {
 }
 
 #[allow(unused)]
-fn test_partial_reference_resolution(md_project_view: ProjectView<MarkdownProject>) {
+fn test_partial_reference_resolution(md_project_view: &MarkdownProject) {
     let suffix = modpath!(index);
     println!(
         "\n\nShowing all possible resolutions for a module named '{:#?}'.\n",

@@ -3,53 +3,9 @@ use std::{collections::HashMap, fmt::Debug, path::Path};
 use sequence_trie::SequenceTrie;
 use tower_lsp::lsp_types::{self, Position};
 
-use super::{
-    ModuleEntry, ModuleName, ModuleOrigin, ModulePath, ModuleSet, PositionInText, ProjectKind,
-    ProjectOrigin, ProjectView,
-};
+use super::{ModuleEntry, ModuleName, ModuleOrigin, ModulePath, ModuleSet, PositionInText};
 
-impl<PKind: ProjectKind> ProjectView<PKind> {
-    /// Creates a new project view from a directory.
-    pub fn new_from_directory<Pa: AsRef<Path>>(path: Pa) -> Self {
-        let local_path = path.as_ref().to_path_buf();
-        let origin = ProjectOrigin {
-            local_path: local_path.clone(),
-        };
-        let mut modules = ModuleSet::new();
-
-        PKind::load_root_module(&mut modules, local_path.clone());
-        PKind::discover_other_modules(&mut modules, local_path);
-
-        ProjectView { modules, origin }
-    }
-
-    /// Updates this project view by looking at this new directory.
-    ///
-    /// This is faster than creating a new view from scratch if little has changed
-    /// on disk since the current version, but way slower if the entire project structure changed.
-    ///
-    /// TODO: Perhaps use immutable `ProjectView`s instead of taking `&mut self`?
-    pub fn update_from_directory<Pa: AsRef<Path>>(path: Pa) -> Self {
-        let origin = ProjectOrigin {
-            local_path: path.as_ref().to_path_buf(),
-        };
-        let modules = ModuleSet::new();
-
-        ProjectView { modules, origin }
-    }
-}
-
-impl<P: ProjectKind> std::fmt::Debug for ProjectView<P>
-where
-    P: std::fmt::Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "project ")?;
-        self.modules.fmt(f)
-    }
-}
-
-impl<P: ProjectKind> ModuleSet<P> {
+impl ModuleSet {
     pub fn new() -> Self {
         ModuleSet {
             entries: Vec::new(),
@@ -59,7 +15,7 @@ impl<P: ProjectKind> ModuleSet<P> {
         }
     }
 
-    pub fn insert(&mut self, new_module: ModuleEntry<P>) {
+    pub fn insert(&mut self, new_module: ModuleEntry) {
         let index_in_arena = self.entries.len();
         self.forward_index
             .insert(new_module.internal_path.0.iter(), index_in_arena);
@@ -81,7 +37,7 @@ impl<P: ProjectKind> ModuleSet<P> {
     }
 
     /// Retrieves a module given its full module path.
-    pub fn module_at(&self, key: ModulePath) -> Option<&ModuleEntry<P>> {
+    pub fn module_at(&self, key: ModulePath) -> Option<&ModuleEntry> {
         self.forward_index
             .get(key.0.iter())
             .and_then(|index| self.module_at_index(*index))
@@ -90,7 +46,7 @@ impl<P: ProjectKind> ModuleSet<P> {
     /// Retrieves the module given its file path.
     ///
     /// TODO: Maybe use URI instead of file path?
-    pub fn module_at_file_path<Pa>(&self, path: Pa) -> Option<&ModuleEntry<P>>
+    pub fn module_at_file_path<Pa>(&self, path: Pa) -> Option<&ModuleEntry>
     where
         Pa: AsRef<Path>,
     {
@@ -100,7 +56,7 @@ impl<P: ProjectKind> ModuleSet<P> {
     }
 
     /// Retrieves the module slotted at a specific index.
-    fn module_at_index(&self, index: usize) -> Option<&ModuleEntry<P>> {
+    fn module_at_index(&self, index: usize) -> Option<&ModuleEntry> {
         self.entries.get(index)
     }
 
@@ -143,25 +99,19 @@ impl<P: ProjectKind> ModuleSet<P> {
     }
 }
 
-impl<P: ProjectKind> Default for ModuleSet<P> {
+impl Default for ModuleSet {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<P: ProjectKind> std::fmt::Debug for ModuleSet<P>
-where
-    P: std::fmt::Debug,
-{
+impl std::fmt::Debug for ModuleSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entries(self.entries.iter()).finish()
     }
 }
 
-impl<P: ProjectKind> std::fmt::Debug for ModuleEntry<P>
-where
-    P: std::fmt::Debug,
-{
+impl std::fmt::Debug for ModuleEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mod '{}' at `{:?}`", self.name, self.internal_path)?;
         //self.content.fmt(f)

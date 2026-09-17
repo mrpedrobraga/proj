@@ -1,11 +1,11 @@
 use super::{MarkdownContent, MarkdownProject, MANIFEST_PATH};
 use proj::{
     modpath,
-    project::{ModuleContentKind, ModuleEntry, ModulePath, PositionInText, ProjectKind},
+    project::{ModuleContent, ModuleEntry, ModulePath, ModuleSet, PositionInText, Project},
     server::HoverInfo,
 };
 
-impl ModuleContentKind for MarkdownContent {
+impl ModuleContent for MarkdownContent {
     fn hover_information_at(
         &self,
         position_in_source_text: proj::project::PositionInText,
@@ -47,13 +47,30 @@ impl ModuleContentKind for MarkdownContent {
     }
 }
 
-impl ProjectKind for MarkdownProject {
-    type ModuleContent = MarkdownContent;
+impl Project for MarkdownProject {
+    fn new_from_directory<Pa: AsRef<std::path::Path>>(path: Pa) -> Self
+    where
+        Self: Sized,
+    {
+        let mut md_project = MarkdownProject {
+            modules: ModuleSet::new(),
+        };
 
-    fn load_root_module(
-        modules: &mut proj::project::ModuleSet<Self>,
-        directory_path: std::path::PathBuf,
-    ) where
+        md_project.load_root_module(path.as_ref().to_path_buf());
+        md_project.discover_other_modules(path.as_ref().to_path_buf());
+
+        md_project
+    }
+
+    fn update_from_directory<Pa: AsRef<std::path::Path>>(_path: Pa) -> Self
+    where
+        Self: Sized,
+    {
+        unimplemented!()
+    }
+
+    fn load_root_module(&mut self, directory_path: std::path::PathBuf)
+    where
         Self: Sized,
     {
         let root_module_file_path = directory_path.join(MANIFEST_PATH);
@@ -66,10 +83,10 @@ impl ProjectKind for MarkdownProject {
             name: "README".to_string(),
             internal_path: root_module_path.clone(),
             origin: proj::project::ModuleOrigin::File(root_module_file_path),
-            content,
+            content: Box::new(content),
         };
 
-        modules.insert(root_module);
+        self.modules.insert(root_module);
     }
 
     /// Spawns non declared modules from the file system.
@@ -77,17 +94,15 @@ impl ProjectKind for MarkdownProject {
     /// TODO: Offload the directory walking to `proj` and create a trait
     /// for deciding whether a file/directory should be included,
     /// how to index a file, how to get a file's content.
-    fn discover_other_modules(
-        modules: &mut proj::project::ModuleSet<Self>,
-        directory_path: std::path::PathBuf,
-    ) where
+    fn discover_other_modules(&mut self, directory_path: std::path::PathBuf)
+    where
         Self: Sized,
     {
         for entry in walkdir::WalkDir::new(&directory_path) {
             let entry = entry.expect("Failed to get entry from file system.");
             let entry_path = entry.path();
 
-            if modules.contains_module_from_file_path(entry_path) {
+            if self.modules.contains_module_from_file_path(entry_path) {
                 continue;
             }
 
@@ -122,12 +137,16 @@ impl ProjectKind for MarkdownProject {
                     name: module_name,
                     internal_path: internal_path.clone(),
                     origin: proj::project::ModuleOrigin::File(entry_path.to_path_buf()),
-                    content,
+                    content: Box::new(content),
                 };
 
-                modules.insert(module);
+                self.modules.insert(module);
             }
         }
+    }
+
+    fn module_at_file_path(&self, file_path: &std::path::Path) -> Option<&ModuleEntry> {
+        self.modules.module_at_file_path(file_path)
     }
 }
 

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use crate::project::{ModuleContentKind, ModuleEntry};
-use crate::{project::ProjectKind, server::ProjectServer};
+use crate::project::ModuleEntry;
+use crate::server::ProjectServer;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
@@ -20,15 +20,14 @@ use tower_lsp::{
 
 pub use tower_lsp;
 
-#[derive(Debug)]
-pub struct ProjectRepl<P: ProjectKind> {
-    pub server: ProjectServer<P>,
+pub struct ProjectRepl {
+    pub server: ProjectServer,
     pub client: Client,
 }
 
-impl<P: ProjectKind> ProjectRepl<P> {
+impl ProjectRepl {
     /// Returns a module from the open projects given its URI if such a module exists.
-    pub fn module_from_uri(&self, uri: &Url) -> Option<&ModuleEntry<P>> {
+    pub fn module_from_uri(&self, uri: &Url) -> Option<&ModuleEntry> {
         let text_document_uri = uri;
         assert_eq!(text_document_uri.scheme(), "file");
         let file_path = text_document_uri.to_file_path().expect("Not a file path?");
@@ -36,13 +35,13 @@ impl<P: ProjectKind> ProjectRepl<P> {
         self.server
             .open_projects
             .iter()
-            .filter_map(|p| p.modules.module_at_file_path(&file_path))
+            .filter_map(|p| p.module_at_file_path(&file_path))
             .next()
     }
 }
 
 #[tower_lsp::async_trait]
-impl<P: ProjectKind + std::fmt::Debug + 'static> LanguageServer for ProjectRepl<P> {
+impl LanguageServer for ProjectRepl {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {

@@ -1,3 +1,4 @@
+use proj::project::ModuleSet;
 use serde::{Deserialize, Serialize};
 
 pub mod implementations;
@@ -6,7 +7,7 @@ pub const MANIFEST_PATH: &str = "README.md";
 
 #[derive(Debug)]
 pub struct MarkdownProject {
-    pub root_node: (),
+    pub modules: ModuleSet,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
