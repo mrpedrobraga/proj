@@ -1,4 +1,4 @@
-use proj::project::ModuleSet;
+use proj_server::project::ModuleSet;
 use serde::{Deserialize, Serialize};
 
 pub mod implementations;

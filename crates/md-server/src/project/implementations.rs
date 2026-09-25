@@ -1,5 +1,5 @@
 use super::{MarkdownContent, MarkdownProject, MANIFEST_PATH};
-use proj::{
+use proj_server::{
     modpath,
     project::{ModuleContent, ModuleEntry, ModulePath, ModuleSet, PositionInText, Project},
     server::HoverInfo,
@@ -8,7 +8,7 @@ use proj::{
 impl ModuleContent for MarkdownContent {
     fn hover_information_at(
         &self,
-        position_in_source_text: proj::project::PositionInText,
+        position_in_source_text: proj_server::project::PositionInText,
     ) -> Option<HoverInfo> {
         if let Some(line_index) = self
             .lines_which_are_headings
@@ -82,7 +82,7 @@ impl Project for MarkdownProject {
         let root_module = ModuleEntry {
             name: "README".to_string(),
             internal_path: root_module_path.clone(),
-            origin: proj::project::ModuleOrigin::File(root_module_file_path),
+            origin: proj_server::project::ModuleOrigin::File(root_module_file_path),
             content: Box::new(content),
         };
 
@@ -136,7 +136,7 @@ impl Project for MarkdownProject {
                 let module = ModuleEntry {
                     name: module_name,
                     internal_path: internal_path.clone(),
-                    origin: proj::project::ModuleOrigin::File(entry_path.to_path_buf()),
+                    origin: proj_server::project::ModuleOrigin::File(entry_path.to_path_buf()),
                     content: Box::new(content),
                 };
 

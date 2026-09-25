@@ -1,4 +1,4 @@
-use proj::{
+use proj_server::{
     modpath,
     project::Project as _,
     repl::{

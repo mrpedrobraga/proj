@@ -1098,7 +1098,7 @@ name = "md-server"
 version = "0.1.0"
 dependencies = [
  "comrak",
- "proj",
+ "proj-server",
  "serde",
  "smol",
  "tracing",
@@ -1370,7 +1370,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "proj"
+name = "proj-client"
+version = "0.1.0"
+dependencies = [
+ "lsp-bridge",
+ "lsp-types 0.97.0",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "proj-server"
 version = "0.1.0"
 dependencies = [
  "clap",
@@ -1381,16 +1391,6 @@ dependencies = [
  "tower-lsp",
  "tracing",
  "walkdir",
-]
-
-[[package]]
-name = "proj-client"
-version = "0.1.0"
-dependencies = [
- "lsp-bridge",
- "lsp-types 0.97.0",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

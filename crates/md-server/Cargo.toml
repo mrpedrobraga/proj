@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-proj = { version = "0.1.0", path = "../proj" }
+proj-server = { version = "0.1.0", path = "../proj-server" }
 comrak = "0.55.0"
 serde = "1.0.229"
 walkdir = "2.5.0"
