@@ -17,7 +17,7 @@ fn main() {
     setup_logging();
 
     let project_path =
-        "/home/mrpedrobraga/Development/proj/crates/md-server/projects/example-project";
+        "/home/mrpedrobraga/Development/proj/crates/md-server/projects/Example Project";
 
     let md_project_view: MarkdownProject = MarkdownProject::new_from_directory(project_path);
 

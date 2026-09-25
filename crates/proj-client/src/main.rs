@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sleep(Duration::from_millis(200)).await;
 
     let file_uri =
-        "file:///home/mrpedrobraga/Development/proj/crates/md-server/projects/example-project/README.md";
+        "file:///home/mrpedrobraga/Development/proj/crates/md-server/projects/Example%20Project/README.md";
     let file_content = "# Hello Markdown";
 
     println!("Opening document...");
