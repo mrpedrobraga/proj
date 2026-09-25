@@ -1,4 +1,4 @@
 [workspace]
 resolver = "3"
 
-members = ["crates/md-server", "crates/proj-server", "crates/proj-client", "crates/proj-edit"]
+members = ["examples/md-server", "crates/proj-server", "crates/proj-client", "crates/proj-edit"]
