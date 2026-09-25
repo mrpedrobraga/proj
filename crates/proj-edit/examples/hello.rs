@@ -1,8 +1,8 @@
-use edit::task::{
+use futures_time::{future::FutureExt, time::Duration};
+use proj_edit::task::{
     primitives::{FutureTask, TaskFuture},
     TaskInfo,
 };
-use futures_time::{future::FutureExt, time::Duration};
 
 fn main() {
     println!("Starting!");

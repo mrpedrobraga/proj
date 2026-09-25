@@ -542,15 +542,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "edit"
-version = "0.1.0"
-dependencies = [
- "futures",
- "futures-time",
- "pin-project",
-]
-
-[[package]]
 name = "emojis"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1377,6 +1368,15 @@ dependencies = [
  "lsp-types 0.97.0",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "proj-edit"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "futures-time",
+ "pin-project",
 ]
 
 [[package]]
