@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::project::ModuleEntry;
-use crate::server::ProjectServer;
+use crate::server::ProjectView;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
@@ -20,29 +20,45 @@ use tower_lsp::{
 
 pub use tower_lsp;
 
-pub struct ProjectRepl {
-    pub server: ProjectServer,
-    pub client: Client,
+pub struct ProjectServer {
+    pub project_view: ProjectView,
+    pub lsp_client: Client,
 }
 
-impl ProjectRepl {
+impl ProjectServer {
     /// Returns a module from the open projects given its URI if such a module exists.
-    pub fn module_from_uri(&self, uri: &Url) -> Option<&ModuleEntry> {
+    pub async fn module_from_uri(&self, uri: &Url) -> Option<ModuleEntry> {
         let text_document_uri = uri;
         assert_eq!(text_document_uri.scheme(), "file");
         let file_path = text_document_uri.to_file_path().expect("Not a file path?");
 
-        self.server
-            .open_projects
-            .iter()
+        let lock = self.project_view.open_projects.read().await;
+        lock.iter()
             .filter_map(|p| p.module_at_file_path(&file_path))
             .next()
+            .cloned()
     }
 }
 
 #[tower_lsp::async_trait]
-impl LanguageServer for ProjectRepl {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+impl LanguageServer for ProjectServer {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        if let Some(root_uri) = params.root_uri {
+            let did_load = self
+                .project_view
+                .preload_project_at(root_uri.to_file_path().unwrap())
+                .await;
+
+            self.lsp_client
+                .log_message(
+                    MessageType::INFO,
+                    format!("Trying to load project: {:?}", did_load),
+                )
+                .await;
+        }
+
+        tracing::info!("Initialized!");
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 // TODO: Make incremental :-)
@@ -108,7 +124,7 @@ impl LanguageServer for ProjectRepl {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        self.client
+        self.lsp_client
             .log_message(MessageType::INFO, "Language Server started!")
             .await;
     }
@@ -118,8 +134,9 @@ impl LanguageServer for ProjectRepl {
     }
 
     async fn hover(&self, param: HoverParams) -> Result<Option<Hover>> {
-        if let Some(module) =
-            self.module_from_uri(&param.text_document_position_params.text_document.uri)
+        if let Some(module) = self
+            .module_from_uri(&param.text_document_position_params.text_document.uri)
+            .await
         {
             let hover_info = module
                 .content
@@ -179,7 +196,7 @@ impl LanguageServer for ProjectRepl {
         &self,
         params: CodeActionParams,
     ) -> Result<Option<Vec<CodeActionOrCommand>>> {
-        if let Some(_module) = self.module_from_uri(&params.text_document.uri) {
+        if let Some(_module) = self.module_from_uri(&params.text_document.uri).await {
             let new_line_text = _module.content.nth_line(0).unwrap().to_uppercase();
 
             let c_a = CodeActionOrCommand::CodeAction(CodeAction {
@@ -224,7 +241,8 @@ impl LanguageServer for ProjectRepl {
     }
 
     async fn shutdown(&self) -> Result<()> {
-        self.client
+        tracing::info!("Shutting down!");
+        self.lsp_client
             .log_message(MessageType::INFO, "Language Server is shutting down.")
             .await;
         Ok(())

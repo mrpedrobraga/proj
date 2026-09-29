@@ -1,13 +1,19 @@
+use std::sync::Arc;
+
+use crate::project::{manifest::ProjectManifester, PositionInText, Project};
 use serde::{Deserialize, Serialize};
+use smol::lock::RwLock;
 
-use crate::project::{PositionInText, Project};
+pub mod implementations;
 
-pub struct ProjectServer {
+pub struct ProjectView {
     /// View to this server's project.
     ///
     /// TODO: Make this an arena... perhaps allow multiple
     /// `ProjectKind`s to be open!
-    pub open_projects: Vec<Box<dyn Project>>,
+    pub open_projects: Arc<RwLock<Vec<Box<dyn Project>>>>,
+
+    pub project_manifesters: Vec<Box<dyn ProjectManifester>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

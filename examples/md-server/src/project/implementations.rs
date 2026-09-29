@@ -1,7 +1,12 @@
-use super::{MarkdownContent, MarkdownProject, MANIFEST_PATH};
+use std::sync::Arc;
+
+use super::{MarkdownContent, MarkdownManifester, MarkdownProject, MANIFEST_PATH};
 use proj_server::{
     modpath,
-    project::{ModuleContent, ModuleEntry, ModulePath, ModuleSet, PositionInText, Project},
+    project::{
+        manifest::ProjectManifester, ModuleContent, ModuleEntry, ModulePath, ModuleSet,
+        PositionInText, Project,
+    },
     server::HoverInfo,
 };
 
@@ -34,8 +39,10 @@ impl ModuleContent for MarkdownContent {
             );
 
             return Some(HoverInfo {
-                text: format!("{heading}\n\nA beautiful heading in my beautiful markdown project.\nReally, isn't it sweet?"),
-                range: Some(range)
+                text: format!(
+                    "{heading}\n\nA beautiful heading in my beautiful markdown project.\nReally, isn't it sweet?"
+                ),
+                range: Some(range),
             });
         }
 
@@ -83,7 +90,7 @@ impl Project for MarkdownProject {
             name: "README".to_string(),
             internal_path: root_module_path.clone(),
             origin: proj_server::project::ModuleOrigin::File(root_module_file_path),
-            content: Box::new(content),
+            content: Arc::new(content),
         };
 
         self.modules.insert(root_module);
@@ -137,7 +144,7 @@ impl Project for MarkdownProject {
                     name: module_name,
                     internal_path: internal_path.clone(),
                     origin: proj_server::project::ModuleOrigin::File(entry_path.to_path_buf()),
-                    content: Box::new(content),
+                    content: Arc::new(content),
                 };
 
                 self.modules.insert(module);
@@ -175,5 +182,22 @@ fn parse_markdown(markdown_source: &str) -> MarkdownContent {
     MarkdownContent {
         lines_which_are_headings,
         text: markdown_source.to_string(),
+    }
+}
+
+impl ProjectManifester for MarkdownManifester {
+    fn name(&self) -> &str {
+        "Markdown Manifester"
+    }
+
+    fn directory_contains_project(
+        &self,
+        directory_path: std::path::PathBuf,
+    ) -> proj_server::project::manifest::Result<bool> {
+        Ok(std::fs::exists(directory_path.join(MANIFEST_PATH))?)
+    }
+
+    fn new_project_from_directory(&self, path: std::path::PathBuf) -> Box<dyn Project> {
+        Box::new(MarkdownProject::new_from_directory(path))
     }
 }

@@ -15,3 +15,5 @@ pub struct MarkdownContent {
     lines_which_are_headings: Vec<usize>,
     text: String,
 }
+
+pub struct MarkdownManifester {}

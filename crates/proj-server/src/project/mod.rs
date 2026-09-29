@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use crate::server::HoverInfo;
@@ -62,13 +63,14 @@ pub struct ModuleSet {
 }
 
 /// An entry in the project view describing a module in the project.
+#[derive(Clone)]
 pub struct ModuleEntry {
     pub name: String,
     /// Path of the module within the project.
     /// Example `::root::foo::bar`
     pub internal_path: ModulePath,
     pub origin: ModuleOrigin,
-    pub content: Box<dyn ModuleContent>,
+    pub content: Arc<dyn ModuleContent>,
 }
 
 #[macro_export]
