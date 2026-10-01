@@ -161,7 +161,7 @@ impl LanguageServer for ProjectServer {
         &self,
         _params: DocumentDiagnosticParams,
     ) -> Result<DocumentDiagnosticReportResult> {
-        let items = vec![Diagnostic {
+        let items = vec![/*Diagnostic {
             range: Range {
                 start: Position::new(0, 99),
                 end: Position::new(0, 99),
@@ -177,7 +177,7 @@ impl LanguageServer for ProjectServer {
             related_information: None,
             tags: None,
             data: None,
-        }];
+        }*/];
 
         Ok(DocumentDiagnosticReportResult::Report(
             tower_lsp::lsp_types::DocumentDiagnosticReport::Full(
@@ -202,7 +202,7 @@ impl LanguageServer for ProjectServer {
             let c_a = CodeActionOrCommand::CodeAction(CodeAction {
                 title: "Make line uppercase.".to_string(),
                 kind: Some(CodeActionKind::REFACTOR_REWRITE),
-                diagnostics: Some(vec![Diagnostic {
+                diagnostics: Some(vec![/*Diagnostic {
                     range: Range {
                         start: Position::new(0, 99),
                         end: Position::new(0, 99),
@@ -219,13 +219,24 @@ impl LanguageServer for ProjectServer {
                     related_information: None,
                     tags: None,
                     data: None,
-                }]),
+                }*/]),
                 edit: Some(WorkspaceEdit {
                     changes: None,
-                    document_changes: Some(tower_lsp::lsp_types::DocumentChanges::Edits(vec![ TextDocumentEdit { text_document: OptionalVersionedTextDocumentIdentifier { uri: params.text_document.uri, version: None }, edits: vec![ OneOf::Left(TextEdit{ range: Range {
-                start: Position::new(0, 0),
-                end: Position::new(0, 99),
-            }, new_text: new_line_text })] } ])),
+                    document_changes: Some(tower_lsp::lsp_types::DocumentChanges::Edits(vec![
+                        TextDocumentEdit {
+                            text_document: OptionalVersionedTextDocumentIdentifier {
+                                uri: params.text_document.uri,
+                                version: None,
+                            },
+                            edits: vec![OneOf::Left(TextEdit {
+                                range: Range {
+                                    start: Position::new(0, 0),
+                                    end: Position::new(0, 99),
+                                },
+                                new_text: new_line_text,
+                            })],
+                        },
+                    ])),
                     change_annotations: None,
                 }),
                 command: None,
