@@ -1,13 +1,11 @@
-use std::str::FromStr;
-
 use crate::project::ModuleEntry;
 use crate::server::ProjectView;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
-    CodeDescription, Diagnostic, DiagnosticOptions, DiagnosticSeverity, DidOpenTextDocumentParams,
-    DocumentDiagnosticParams, DocumentDiagnosticReportResult, FullDocumentDiagnosticReport, Hover,
-    HoverParams, MarkupContent, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range,
+    DiagnosticOptions, DidOpenTextDocumentParams, DocumentDiagnosticParams,
+    DocumentDiagnosticReportResult, FullDocumentDiagnosticReport, Hover, HoverParams,
+    MarkupContent, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range,
     RelatedFullDocumentDiagnosticReport, TextDocumentEdit, TextDocumentSyncKind, TextEdit, Url,
     WorkDoneProgressOptions, WorkspaceEdit,
 };
@@ -34,7 +32,7 @@ impl ProjectServer {
 
         let lock = self.project_view.open_projects.read().await;
         lock.iter()
-            .filter_map(|p| p.module_at_file_path(&file_path))
+            .filter_map(|p| p.modules().module_at_file_path(&file_path))
             .next()
             .cloned()
     }

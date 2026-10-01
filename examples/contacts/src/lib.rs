@@ -1,17 +1,18 @@
 use ::std::sync::Arc;
 
 use ::proj_server::{
-    ProjError,
     project::{
-        ModuleContent, ModuleEntry, ModuleOrigin, ModulePath, Project, manifest::ProjectManifester,
+        manifest::{IncludeRule, ModuleInclude, ProjectLayout, ProjectManifester},
+        ModuleContent, ModuleSet, Project,
     },
     server::HoverInfo,
+    ProjError,
 };
 use ::serde::{Deserialize, Serialize};
 
 pub struct ContactsProject {
-    manifest: Option<ContactsManifest>,
-    entries: Vec<ModuleEntry>,
+    pub manifest: Option<ContactsManifest>,
+    modules: ModuleSet,
 }
 
 pub struct ContactsManifester {}
@@ -30,107 +31,59 @@ pub struct ContactFile {
     description: Option<String>,
 }
 
+impl ProjectManifester for ContactsManifester {
+    fn name(&self) -> &str {
+        "contacts"
+    }
+
+    fn directory_contains_project(&self, path: std::path::PathBuf) -> Result<bool, ProjError> {
+        std::fs::exists(path.join("contacts.toml")).map_err(ProjError::Io)
+    }
+
+    fn new_project_from_directory(&self, path: std::path::PathBuf) -> Box<dyn Project> {
+        Box::new(ContactsProject::new_from_directory(path))
+    }
+}
+
+fn project_layout() -> ProjectLayout {
+    ProjectLayout::new() //
+        .include(IncludeRule::new("contacts/*.ron".into(), |source| {
+            let parsed = ron::from_str::<ContactFile>(source.file_content).map_err(Box::new)?;
+
+            Ok(ModuleInclude::new(
+                source.file_name().unwrap(),
+                Arc::new(ContactsModuleContent {
+                    parsed,
+                    raw: source.file_content.to_string(),
+                }),
+            ))
+        }))
+}
+
 impl Project for ContactsProject {
     fn new_from_directory<Pa: AsRef<std::path::Path>>(path: Pa) -> Self
     where
         Self: Sized,
     {
-        let mut project = Self {
-            entries: Vec::new(),
+        Self {
+            modules: project_layout().gather(path.as_ref()),
             manifest: None,
-        };
-
-        project.load_root_module(path.as_ref().to_path_buf());
-        project.discover_other_modules(path.as_ref().to_path_buf());
-
-        project
+        }
     }
 
-    fn update_from_directory<Pa: AsRef<std::path::Path>>(path: Pa) -> Self
+    fn update_from_directory<Pa: AsRef<std::path::Path>>(_path: Pa) -> Self
     where
         Self: Sized,
     {
         unimplemented!()
     }
 
-    fn load_root_module(&mut self, directory_path: std::path::PathBuf)
-    where
-        Self: Sized,
-    {
-        tracing::info!("Loading manifest...");
-        self.manifest = std::fs::read_to_string(directory_path.join("contacts.toml"))
-            .ok()
-            .and_then(|raw| toml::from_str(&raw).ok());
+    fn layout(&self) -> proj_server::project::manifest::ProjectLayout {
+        project_layout()
     }
 
-    fn discover_other_modules(&mut self, directory_path: std::path::PathBuf)
-    where
-        Self: Sized,
-    {
-        let contacts_folder = directory_path.join("contacts");
-        tracing::info!("Discovering contacts from '{}'", contacts_folder.display());
-        if contacts_folder.exists() {
-            let dir = std::fs::read_dir(contacts_folder).unwrap();
-
-            tracing::info!("Discovering modules...");
-
-            for dir_entry in dir.flatten() {
-                let dir_entry_path = dir_entry.path();
-                let raw = std::fs::read_to_string(&dir_entry_path).unwrap();
-                let parsed: ContactFile = ron::from_str(&raw).unwrap();
-                tracing::info!("Discovered module {:?}", dir_entry_path);
-                self.entries.push(ModuleEntry {
-                    name: parsed.name.clone(),
-                    internal_path: ModulePath(vec![
-                        dir_entry_path
-                            .file_name()
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
-                            .to_string(),
-                    ]),
-                    origin: ModuleOrigin::File(dir_entry_path),
-                    content: Arc::new(ContactsModuleContent { parsed, raw }),
-                });
-            }
-        }
-    }
-
-    fn module_at_file_path(
-        &self,
-        file_path: &std::path::Path,
-    ) -> Option<&proj_server::project::ModuleEntry> {
-        tracing::info!("Checking for found module at {}", file_path.display());
-
-        for entry in self.entries.iter() {
-            if let ModuleOrigin::File(path) = &entry.origin
-                && same_file::is_same_file(path, file_path).ok()?
-            {
-                tracing::info!("Found.");
-                return Some(entry);
-            }
-        }
-
-        tracing::info!("Not found.");
-
-        None
-    }
-}
-
-impl ProjectManifester for ContactsManifester {
-    fn name(&self) -> &str {
-        "contacts"
-    }
-
-    fn directory_contains_project(
-        &self,
-        path: std::path::PathBuf,
-    ) -> proj_server::project::manifest::Result<bool> {
-        std::fs::exists(path.join("contacts.toml")).map_err(ProjError::Io)
-    }
-
-    fn new_project_from_directory(&self, path: std::path::PathBuf) -> Box<dyn Project> {
-        Box::new(ContactsProject::new_from_directory(path))
+    fn modules(&self) -> &ModuleSet {
+        &self.modules
     }
 }
 

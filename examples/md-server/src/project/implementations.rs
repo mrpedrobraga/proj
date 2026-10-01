@@ -1,14 +1,94 @@
-use std::sync::Arc;
-
 use super::{MarkdownContent, MarkdownManifester, MarkdownProject, MANIFEST_PATH};
+use ::proj_server::{
+    project::manifest::{IncludeRule, ModuleInclude, ProjectLayout},
+    ProjError,
+};
 use proj_server::{
-    modpath,
-    project::{
-        manifest::ProjectManifester, ModuleContent, ModuleEntry, ModulePath, ModuleSet,
-        PositionInText, Project,
-    },
+    project::{manifest::ProjectManifester, ModuleContent, ModuleSet, PositionInText, Project},
     server::HoverInfo,
 };
+use std::sync::Arc;
+
+impl ProjectManifester for MarkdownManifester {
+    fn name(&self) -> &str {
+        "Markdown Manifester"
+    }
+
+    fn directory_contains_project(
+        &self,
+        directory_path: std::path::PathBuf,
+    ) -> Result<bool, ProjError> {
+        Ok(std::fs::exists(directory_path.join(MANIFEST_PATH))?)
+    }
+
+    fn new_project_from_directory(&self, path: std::path::PathBuf) -> Box<dyn Project> {
+        Box::new(MarkdownProject::new_from_directory(path))
+    }
+}
+
+fn project_layout() -> ProjectLayout {
+    ProjectLayout::new() //
+        .include(IncludeRule::new("**/*.md".into(), |source| {
+            Ok(ModuleInclude::new(
+                source.file_name().unwrap(),
+                Arc::new(parse_markdown(source.file_content)),
+            ))
+        }))
+}
+
+impl Project for MarkdownProject {
+    fn new_from_directory<Pa: AsRef<std::path::Path>>(path: Pa) -> Self
+    where
+        Self: Sized,
+    {
+        MarkdownProject {
+            modules: project_layout().gather(path.as_ref()),
+        }
+    }
+
+    fn update_from_directory<Pa: AsRef<std::path::Path>>(_path: Pa) -> Self
+    where
+        Self: Sized,
+    {
+        unimplemented!()
+    }
+
+    fn layout(&self) -> ProjectLayout {
+        project_layout()
+    }
+
+    fn modules(&self) -> &ModuleSet {
+        &self.modules
+    }
+}
+
+fn parse_markdown(markdown_source: &str) -> MarkdownContent {
+    let arena = comrak::Arena::new();
+    let options = comrak::Options {
+        extension: comrak::options::Extension::builder()
+            .wikilinks_title_after_pipe(true)
+            .build(),
+        parse: comrak::options::Parse::builder().build(),
+        render: comrak::options::Render::default(),
+    };
+    let _root_node = comrak::parse_document(&arena, markdown_source, &options);
+
+    let mut lines_which_are_headings = vec![];
+    for (line_index, line) in markdown_source.lines().enumerate() {
+        if line.starts_with("#") {
+            lines_which_are_headings.push(line_index);
+        }
+    }
+
+    // for node in root_node.descendants() {
+    //     println!("{:#?}", node.collect_text());
+    // }
+
+    MarkdownContent {
+        lines_which_are_headings,
+        text: markdown_source.to_string(),
+    }
+}
 
 impl ModuleContent for MarkdownContent {
     fn hover_information_at(
@@ -51,153 +131,5 @@ impl ModuleContent for MarkdownContent {
 
     fn nth_line(&self, line_index: usize) -> Option<String> {
         self.text.lines().nth(line_index).map(str::to_string)
-    }
-}
-
-impl Project for MarkdownProject {
-    fn new_from_directory<Pa: AsRef<std::path::Path>>(path: Pa) -> Self
-    where
-        Self: Sized,
-    {
-        let mut md_project = MarkdownProject {
-            modules: ModuleSet::new(),
-        };
-
-        md_project.load_root_module(path.as_ref().to_path_buf());
-        md_project.discover_other_modules(path.as_ref().to_path_buf());
-
-        md_project
-    }
-
-    fn update_from_directory<Pa: AsRef<std::path::Path>>(_path: Pa) -> Self
-    where
-        Self: Sized,
-    {
-        unimplemented!()
-    }
-
-    fn load_root_module(&mut self, directory_path: std::path::PathBuf)
-    where
-        Self: Sized,
-    {
-        let root_module_file_path = directory_path.join(MANIFEST_PATH);
-        let root_module_source = std::fs::read_to_string(&root_module_file_path)
-            .unwrap_or_else(|_| panic!("Failed to load {:?}", root_module_file_path));
-        let content = parse_markdown(&root_module_source);
-
-        let root_module_path = modpath!(root);
-        let root_module = ModuleEntry {
-            name: "README".to_string(),
-            internal_path: root_module_path.clone(),
-            origin: proj_server::project::ModuleOrigin::File(root_module_file_path),
-            content: Arc::new(content),
-        };
-
-        self.modules.insert(root_module);
-    }
-
-    /// Spawns non declared modules from the file system.
-    ///
-    /// TODO: Offload the directory walking to `proj` and create a trait
-    /// for deciding whether a file/directory should be included,
-    /// how to index a file, how to get a file's content.
-    fn discover_other_modules(&mut self, directory_path: std::path::PathBuf)
-    where
-        Self: Sized,
-    {
-        for entry in walkdir::WalkDir::new(&directory_path) {
-            let entry = entry.expect("Failed to get entry from file system.");
-            let entry_path = entry.path();
-
-            if self.modules.contains_module_from_file_path(entry_path) {
-                continue;
-            }
-
-            // Checks if the current file is a markdown file!
-            if entry.file_type().is_file()
-                && (entry_path.extension().and_then(|e| e.to_str()) == Some("md"))
-            {
-                let raw_markdown =
-                    std::fs::read_to_string(entry_path).expect("Failed to read content of file.");
-                let content = parse_markdown(&raw_markdown);
-
-                let relative_path = entry_path
-                    .strip_prefix(&directory_path)
-                    .expect("Failed to strip prefix?");
-
-                let internal_path_components = relative_path
-                    .with_extension("")
-                    .components()
-                    .map(|com| com.as_os_str().to_str().unwrap().to_string())
-                    .collect::<Vec<_>>();
-                let internal_path = ModulePath::from(internal_path_components);
-
-                // TODO: A better way of getting the name of a module :-)
-                let module_name = entry_path
-                    .file_stem()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-
-                let module = ModuleEntry {
-                    name: module_name,
-                    internal_path: internal_path.clone(),
-                    origin: proj_server::project::ModuleOrigin::File(entry_path.to_path_buf()),
-                    content: Arc::new(content),
-                };
-
-                self.modules.insert(module);
-            }
-        }
-    }
-
-    fn module_at_file_path(&self, file_path: &std::path::Path) -> Option<&ModuleEntry> {
-        self.modules.module_at_file_path(file_path)
-    }
-}
-
-fn parse_markdown(markdown_source: &str) -> MarkdownContent {
-    let arena = comrak::Arena::new();
-    let options = comrak::Options {
-        extension: comrak::options::Extension::builder()
-            .wikilinks_title_after_pipe(true)
-            .build(),
-        parse: comrak::options::Parse::builder().build(),
-        render: comrak::options::Render::default(),
-    };
-    let _root_node = comrak::parse_document(&arena, markdown_source, &options);
-
-    let mut lines_which_are_headings = vec![];
-    for (line_index, line) in markdown_source.lines().enumerate() {
-        if line.starts_with("#") {
-            lines_which_are_headings.push(line_index);
-        }
-    }
-
-    // for node in root_node.descendants() {
-    //     println!("{:#?}", node.collect_text());
-    // }
-
-    MarkdownContent {
-        lines_which_are_headings,
-        text: markdown_source.to_string(),
-    }
-}
-
-impl ProjectManifester for MarkdownManifester {
-    fn name(&self) -> &str {
-        "Markdown Manifester"
-    }
-
-    fn directory_contains_project(
-        &self,
-        directory_path: std::path::PathBuf,
-    ) -> proj_server::project::manifest::Result<bool> {
-        Ok(std::fs::exists(directory_path.join(MANIFEST_PATH))?)
-    }
-
-    fn new_project_from_directory(&self, path: std::path::PathBuf) -> Box<dyn Project> {
-        Box::new(MarkdownProject::new_from_directory(path))
     }
 }

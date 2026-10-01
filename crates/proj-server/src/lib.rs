@@ -3,6 +3,8 @@
 use self::project::manifest::ProjectManifester;
 use thiserror::Error;
 
+pub use globwalker;
+
 pub mod cli;
 pub mod project;
 pub mod repl;

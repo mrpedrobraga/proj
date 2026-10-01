@@ -8,6 +8,8 @@ use std::{
 
 use crate::server::HoverInfo;
 
+use self::manifest::ProjectLayout;
+
 pub mod implementations;
 pub mod manifest;
 
@@ -29,16 +31,13 @@ pub trait Project: Send + Sync {
     where
         Self: Sized;
 
-    fn load_root_module(&mut self, directory_path: PathBuf)
-    where
-        Self: Sized;
+    /// Returns the layout of the project, that is,
+    /// a description of how to interpret the directories and files
+    /// as a project.
+    fn layout(&self) -> ProjectLayout;
 
-    fn discover_other_modules(&mut self, directory_path: PathBuf)
-    where
-        Self: Sized;
-
-    /// Returns the module associated with the given file path if one exists.
-    fn module_at_file_path(&self, file_path: &Path) -> Option<&ModuleEntry>;
+    /// Returns a view into the modules of this project.
+    fn modules(&self) -> &ModuleSet;
 }
 
 /// Where a project was sourced from.
