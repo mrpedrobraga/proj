@@ -5,7 +5,7 @@ use ::proj_server::{
         manifest::{IncludeRule, ModuleInclude, ProjectLayout, ProjectManifester},
         ModuleContent, ModuleSet, Project,
     },
-    server::HoverInfo,
+    view::HoverInfo,
     ProjError,
 };
 use ::serde::{Deserialize, Serialize};
@@ -91,7 +91,7 @@ impl ModuleContent for ContactsModuleContent {
     fn hover_information_at(
         &self,
         _: proj_server::project::PositionInText,
-    ) -> Option<proj_server::server::HoverInfo> {
+    ) -> Option<proj_server::view::HoverInfo> {
         Some(HoverInfo {
             text: format!("Contacts entry for {}", self.parsed.name),
             range: None,

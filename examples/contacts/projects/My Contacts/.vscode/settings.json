@@ -1,3 +1,6 @@
 {
-    "glspc.server.command": "/home/mrpedrobraga/Development/proj/target/debug/contacts"
+    "glspc.server.command": "/home/mrpedrobraga/Development/proj/target/debug/contacts",
+    "glspc.server.commandArguments": [
+        "lsp"
+    ]
 }

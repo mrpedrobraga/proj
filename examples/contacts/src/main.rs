@@ -1,27 +1,11 @@
 use ::contacts::ContactsManifester;
-use ::proj_server::{
-    repl::{
-        tower_lsp::{LspService, Server},
-        ProjectServer,
-    },
-    server::ProjectView,
-};
+use ::proj_server::prelude::*;
 use ::tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
 fn main() {
     setup_logging();
 
-    let manifester = ContactsManifester {};
-
-    let server = ProjectView::new(vec![Box::new(manifester)]);
-    let (service, socket) = LspService::new(|client| ProjectServer {
-        project_view: server,
-        lsp_client: client,
-    });
-    let stdin = smol::Unblock::new(std::io::stdin());
-    let stdout = smol::Unblock::new(std::io::stdout());
-    let server_process = Server::new(stdin, stdout, socket).serve(service);
-    smol::block_on(server_process);
+    cli_start(vec![ Box::new(ContactsManifester {}) ]);
 }
 
 fn setup_logging() {
