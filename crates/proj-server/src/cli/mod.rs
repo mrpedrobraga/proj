@@ -5,6 +5,8 @@
 
 use std::path::PathBuf;
 
+pub mod start;
+
 #[derive(clap::Parser, Debug)]
 #[command(version, about)]
 pub enum CliArgs {
@@ -21,13 +23,15 @@ pub enum CliArgs {
     /// Runs the current project.
     Run,
     /// Starts a development server for the current project.
-    DevServe,
+    Serve,
+    /// Starts a language server (compatible with the language server protocol) for the current project.
+    Lsp,
     /// Bundles the project, allowing it to be shared in an entirely portable format.
     Bundle,
 
     /// Commands dealing with task. Run it with `--help` for detailed info.
     #[command(subcommand)]
-    Task(CliArgsTask),
+    Action(CliArgsAction),
     /// Commands dealing with dependencies. Run it with `--help` for detailed info.
     #[command(subcommand)]
     Deps(CliArgsDeps),
@@ -43,7 +47,7 @@ pub enum CliArgs {
 }
 
 #[derive(clap::Subcommand, Debug)]
-pub enum CliArgsTask {
+pub enum CliArgsAction {
     /// Runs a task.
     Run { #[arg(long)] task_name: String }
 }

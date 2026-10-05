@@ -1,9 +1,9 @@
 use proj_server::{
-    repl::{
+    server::{
         tower_lsp::{LspService, Server},
         ProjectServer,
     },
-    server::ProjectView,
+    view::ProjectView,
 };
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 

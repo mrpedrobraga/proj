@@ -5,7 +5,7 @@ use ::proj_server::{
 };
 use proj_server::{
     project::{manifest::ProjectManifester, ModuleContent, ModuleSet, PositionInText, Project},
-    server::HoverInfo,
+    view::HoverInfo,
 };
 use std::sync::Arc;
 

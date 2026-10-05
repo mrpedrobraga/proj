@@ -7,8 +7,8 @@ pub use globwalker;
 
 pub mod cli;
 pub mod project;
-pub mod repl;
 pub mod server;
+pub mod view;
 
 /// The main trait of this library.
 /// Implement this for your own struct to create your own package manager.
@@ -20,4 +20,8 @@ pub trait ProjectManager {
 pub enum ProjError {
     #[error("an io error occurred")]
     Io(#[from] std::io::Error),
+}
+
+pub mod prelude {
+    pub use crate::cli::start::cli_start;
 }

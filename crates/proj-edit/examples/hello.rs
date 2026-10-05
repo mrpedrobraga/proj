@@ -8,15 +8,15 @@ fn main() {
     println!("Starting!");
 
     let fut = async { "This is my value." }.delay(Duration::from_millis(1000));
-    let tt = FutureTask::new(
+    let futtask = FutureTask::new(
         fut,
         TaskInfo {
             progress_step_count: None,
             label: Some("Fetching Value".to_string()),
         },
     );
-    let ttfut = TaskFuture::new(tt);
+    let futtaskfut = TaskFuture::new(futtask);
 
-    let result = futures::executor::block_on(ttfut);
+    let result = futures::executor::block_on(futtaskfut);
     dbg!(result);
 }

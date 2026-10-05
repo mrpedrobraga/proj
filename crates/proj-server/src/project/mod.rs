@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::server::HoverInfo;
+use crate::view::HoverInfo;
 
 use self::manifest::ProjectLayout;
 
