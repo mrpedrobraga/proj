@@ -11,6 +11,7 @@ pub mod primitives;
 /// See the [module-level documentation][self].
 pub trait Task {
     type Output;
+    type StepIter: Iterator<Item = TaskStep>;
 
     /// Polls the task, in a similar fashion to [Future],
     /// except that a Task has more information available in its pending state.
@@ -18,10 +19,12 @@ pub trait Task {
 
     /// Returns information about the task.
     fn info(&self) -> TaskInfo;
+
+    fn steps(&self) -> Self::StepIter;
 }
 
 pub enum Poll<T> {
-    Pending(TaskPendingState),
+    Pending(TaskProgressState),
     Done(T),
 }
 
@@ -35,8 +38,15 @@ pub struct TaskInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct TaskPendingState {
+pub struct TaskProgressState {
     /// How many steps this task has progressed so far.
     /// Combined with [TaskInfo::progress_step_count], can be used to make a progress bar.
     pub progress_step: usize,
+    /// What the task is currently doing.
+    pub progress_label: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TaskStep {
+    pub label: Option<String>
 }
